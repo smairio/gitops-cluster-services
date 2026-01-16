@@ -9,13 +9,21 @@ spec:
     server: https://kubernetes.default.svc
     namespace: monitoring
 
-  source:
-    repoURL: https://prometheus-community.github.io/helm-charts
-    chart: kube-prometheus-stack
-    targetRevision: 56.6.2
-    helm:
-      valueFiles:
-        - values.yaml
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 56.6.2
+      helm:
+        valueFiles:
+          - $values/monitoring/values.yaml
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: HEAD
+      ref: values
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: HEAD
+      path: monitoring
+      directory:
+        include: '{ingress.yaml,externalsecret-*.yaml}'
 
   syncPolicy:
     automated:
