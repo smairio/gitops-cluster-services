@@ -47,23 +47,70 @@ vault kv put secret/prod/redis \
 
 ## Deploy with ArgoCD
 
-### Option 1: Apply directly
+### Option 1: Add repo and apply apps manually
 
 ```bash
+# Add this repo to ArgoCD
+argocd repo add https://github.com/smairio/gitops-cluster-services.git
+
+# Apply ExternalSecrets first (they create the K8s secrets)
 kubectl apply -f monitoring/externalsecret-admin.yaml
 kubectl apply -f monitoring/externalsecret-domain.yaml
+kubectl apply -f redis/externalsecret.yaml
+
+# Wait for secrets to sync
+kubectl get secret -n monitoring grafana-admin
+kubectl get secret -n redis redis-auth
+
+# Apply ArgoCD Applications
 kubectl apply -f monitoring/app.yaml
 kubectl apply -f monitoring/ingress.yaml
-
-kubectl apply -f redis/externalsecret.yaml
 kubectl apply -f redis/app.yaml
-
 kubectl apply -f cloudnative-pg/app.yaml
 ```
 
-### Option 2: App of Apps pattern
+### Option 2: App of Apps (recommended)
 
-Create a root application that manages all apps (recommended for GitOps).
+Create a root application that deploys all services:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cluster-services
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/smairio/gitops-cluster-services.git
+    targetRevision: main
+    path: .
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
+
+Save as `app-of-apps.yaml` and apply:
+
+```bash
+kubectl apply -f app-of-apps.yaml
+```
+
+### Option 3: ArgoCD CLI
+
+```bash
+argocd app create cluster-services \
+  --repo https://github.com/smairio/gitops-cluster-services.git \
+  --path . \
+  --dest-server https://kubernetes.default.svc \
+  --directory-recurse \
+  --sync-policy automated
+```
 
 ## Access
 
