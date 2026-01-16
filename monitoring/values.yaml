@@ -1,0 +1,15 @@
+grafana:
+  enabled: true
+  service:
+    type: ClusterIP
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+
+prometheus:
+  service:
+    type: ClusterIP
+
+alertmanager:
+  enabled: true

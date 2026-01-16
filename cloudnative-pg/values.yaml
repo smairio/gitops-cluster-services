@@ -1,0 +1,2 @@
+# default is fine for most clusters
+replicaCount: 1
