@@ -52,13 +52,7 @@ spec:
       value: "f'redis://:{os.environ.get(\"REDIS_PASSWORD\")}@redis-node-0.redis-headless.redis.svc.cluster.local:6379/0'"
     # Django CACHES configuration for Redis
     - setting: CACHES
-      value: |
-        {
-          'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': f'redis://:{os.environ.get("REDIS_PASSWORD")}@redis-node-0.redis-headless.redis.svc.cluster.local:6379/1',
-          }
-        }
+      value: "{'default': {'BACKEND': 'django_redis.cache.RedisCache', 'LOCATION': f'redis://:{os.environ.get(\"REDIS_PASSWORD\")}@redis-node-0.redis-headless.redis.svc.cluster.local:6379/1'}}"
   
   # Resource requests/limits
   web_resource_requirements:
