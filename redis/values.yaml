@@ -1,4 +1,4 @@
-architecture: replication
+architecture: standalone
 
 auth:
   enabled: true
@@ -14,23 +14,9 @@ master:
     requests:
       memory: 256Mi
       cpu: 100m
-
-replica:
-  replicaCount: 2
-  persistence:
-    enabled: true
-    size: 10Gi
-  resources:
-    requests:
-      memory: 256Mi
-      cpu: 100m
-
-sentinel:
-  enabled: true
-  masterSet: mymaster
-  quorum: 2
-  service:
-    type: ClusterIP
+    limits:
+      memory: 512Mi
+      cpu: 500m
 
 metrics:
   enabled: true
