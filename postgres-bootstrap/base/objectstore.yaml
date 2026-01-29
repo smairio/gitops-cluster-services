@@ -12,7 +12,7 @@ metadata:
 spec:
   configuration:
     # S3 bucket path with cluster subfolder
-    destinationPath: s3://postgres-backups/clusters/postgres-cluster
+    destinationPath: s3://awx-postgres-backups/clusters/postgres-cluster
 
     # Hetzner S3 endpoint (Falkenstein region)
     endpointURL: https://fsn1.your-objectstorage.com
