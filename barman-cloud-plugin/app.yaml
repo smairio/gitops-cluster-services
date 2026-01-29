@@ -19,10 +19,10 @@ spec:
   sources:
     # Helm chart for the plugin
     - repoURL: https://cloudnative-pg.github.io/charts
-      chart: barman-cloud
-      targetRevision: 0.3.0
+      chart: plugin-barman-cloud
+      targetRevision: 0.4.0
       helm:
-        releaseName: barman-cloud
+        releaseName: plugin-barman-cloud
         valueFiles:
           - $values/barman-cloud-plugin/values.yaml
 
