@@ -70,6 +70,6 @@ spec:
       cpu: 1000m
       memory: 2Gi
 
-  # HA replicas
-  web_replicas: 2
-  task_replicas: 2
+  # HA replicas - reduced for cluster capacity
+  web_replicas: 1
+  task_replicas: 1
