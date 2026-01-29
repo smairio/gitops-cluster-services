@@ -1,6 +1,10 @@
 # =============================================================================
 # AWX Instance
 # =============================================================================
+# NOTE: AWX operator uses a built-in Redis sidecar container that communicates
+# via unix socket. External Redis is NOT supported by the operator natively.
+# The bundled Redis sidecar is the recommended and most reliable approach.
+# =============================================================================
 apiVersion: awx.ansible.com/v1beta1
 kind: AWX
 metadata:
@@ -23,37 +27,6 @@ spec:
   # Ingress - managed manually
   ingress_type: none
   
-  # Redis configuration via env vars
-  extra_volumes: |
-    - name: redis-password
-      secret:
-        secretName: awx-redis-secret
-        items:
-          - key: password
-            path: redis-password
-  
-  web_extra_env: |
-    - name: REDIS_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: awx-redis-secret
-          key: password
-  
-  task_extra_env: |
-    - name: REDIS_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: awx-redis-secret
-          key: password
-  
-  extra_settings:
-    # External Redis configuration - using master node directly via headless service
-    - setting: BROKER_URL
-      value: "f'redis://:{os.environ.get(\"REDIS_PASSWORD\")}@redis-node-0.redis-headless.redis.svc.cluster.local:6379/0'"
-    # Django CACHES configuration for Redis
-    - setting: CACHES
-      value: "{'default': {'BACKEND': 'django_redis.cache.RedisCache', 'LOCATION': f'redis://:{os.environ.get(\"REDIS_PASSWORD\")}@redis-node-0.redis-headless.redis.svc.cluster.local:6379/1'}}"
-  
   # Resource requests/limits
   web_resource_requirements:
     requests:
@@ -70,6 +43,15 @@ spec:
     limits:
       cpu: 1000m
       memory: 2Gi
+
+  # Redis sidecar resources (built-in Redis)
+  redis_resource_requirements:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
 
   # HA replicas - reduced for cluster capacity
   web_replicas: 1
