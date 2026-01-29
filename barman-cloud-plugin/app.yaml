@@ -26,10 +26,15 @@ spec:
         valueFiles:
           - $values/barman-cloud-plugin/values.yaml
 
-    # Values from git repo
+    # Values reference for helm chart
     - repoURL: https://github.com/smairio/gitops-cluster-services.git
       targetRevision: main
       ref: values
+
+    # Additional manifests (ExternalSecret, ObjectStore)
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: main
+      path: barman-cloud-plugin/manifests
 
   syncPolicy:
     automated:
