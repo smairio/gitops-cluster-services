@@ -1,0 +1,12 @@
+# Barman Cloud Plugin Helm Values
+# Default configuration is usually sufficient
+replicaCount: 1
+
+# Resources for the plugin pods
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "100m"

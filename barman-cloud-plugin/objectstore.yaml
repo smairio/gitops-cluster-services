@@ -1,0 +1,54 @@
+# =============================================================================
+# ObjectStore - Hetzner S3 Configuration for Barman Cloud Plugin
+# =============================================================================
+# This is the new CRD introduced by the Barman Cloud Plugin (CNPG-I)
+# It replaces the deprecated .spec.backup.barmanObjectStore in Cluster
+#
+# Hetzner Object Storage Endpoints:
+#   - Falkenstein: https://fsn1.your-objectstorage.com
+#   - Nuremberg:   https://nbg1.your-objectstorage.com
+#   - Helsinki:    https://hel1.your-objectstorage.com
+# =============================================================================
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: hetzner-s3-store
+  namespace: cnpg-system
+spec:
+  configuration:
+    # S3 bucket path - create bucket first in Hetzner Console
+    destinationPath: s3://postgres-backups/
+
+    # Hetzner S3 endpoint (Falkenstein region)
+    endpointURL: https://fsn1.your-objectstorage.com
+
+    # S3 credentials from ExternalSecret
+    s3Credentials:
+      accessKeyId:
+        name: hetzner-s3-credentials
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: hetzner-s3-credentials
+        key: ACCESS_SECRET_KEY
+
+    # WAL archiving configuration
+    wal:
+      compression: gzip
+      maxParallel: 2
+
+    # Base backup configuration
+    data:
+      compression: gzip
+      immediateCheckpoint: false
+
+  # Sidecar configuration for PostgreSQL instances
+  instanceSidecarConfiguration:
+    # Run retention policy check every 30 minutes
+    retentionPolicyIntervalSeconds: 1800
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"

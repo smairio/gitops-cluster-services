@@ -1,0 +1,40 @@
+# =============================================================================
+# Barman Cloud Plugin - CNPG-I Plugin for Object Storage Backups
+# =============================================================================
+# This replaces the deprecated in-tree barmanObjectStore backup method
+# starting with CloudNativePG v1.26
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: barman-cloud-plugin
+  namespace: argocd
+spec:
+  project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system  # Same namespace as CloudNativePG operator
+
+  sources:
+    # Helm chart for the plugin
+    - repoURL: https://cloudnative-pg.github.io/charts
+      chart: barman-cloud
+      targetRevision: 0.3.0
+      helm:
+        releaseName: barman-cloud
+        valueFiles:
+          - $values/barman-cloud-plugin/values.yaml
+
+    # Values from git repo
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: main
+      ref: values
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
