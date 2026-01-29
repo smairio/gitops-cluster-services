@@ -48,11 +48,17 @@ spec:
   
   extra_settings:
     # External Redis configuration - using master node directly via headless service
-    # Note: For full HA, would need Sentinel-aware client or Redis proxy
     - setting: BROKER_URL
       value: "f'redis://:{os.environ.get(\"REDIS_PASSWORD\")}@redis-node-0.redis-headless.redis.svc.cluster.local:6379/0'"
-    - setting: CACHE_URL
-      value: "f'redis://:{os.environ.get(\"REDIS_PASSWORD\")}@redis-node-0.redis-headless.redis.svc.cluster.local:6379/1'"
+    # Django CACHES configuration for Redis
+    - setting: CACHES
+      value: |
+        {
+          'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': f'redis://:{os.environ.get("REDIS_PASSWORD")}@redis-node-0.redis-headless.redis.svc.cluster.local:6379/1',
+          }
+        }
   
   # Resource requests/limits
   web_resource_requirements:
