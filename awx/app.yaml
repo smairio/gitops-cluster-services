@@ -1,0 +1,44 @@
+# =============================================================================
+# AWX Operator - ArgoCD Application
+# =============================================================================
+# Deploys AWX Operator using Helm chart from awx-operator repository
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: awx
+  namespace: argocd
+spec:
+  project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: awx
+
+  sources:
+    # AWX Operator Helm chart
+    - repoURL: https://ansible-community.github.io/awx-operator-helm/
+      chart: awx-operator
+      targetRevision: 2.19.1
+      helm:
+        releaseName: awx-operator
+        valueFiles:
+          - $values/awx/values.yaml
+
+    # Values and additional manifests from git
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: main
+      ref: values
+
+    # Additional manifests (secrets, AWX instance)
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: main
+      path: awx/manifests
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

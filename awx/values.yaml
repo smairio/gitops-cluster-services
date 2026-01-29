@@ -1,0 +1,3 @@
+# AWX Operator Helm Values
+AWX:
+  enabled: false  # We'll create AWX instance manually with external secrets

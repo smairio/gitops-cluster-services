@@ -10,13 +10,26 @@ spec:
     server: https://kubernetes.default.svc
     namespace: redis
 
-  source:
-    repoURL: https://charts.bitnami.com/bitnami
-    chart: redis
-    targetRevision: 24.1.0
-    helm:
-      valueFiles:
-        - values.yaml
+  sources:
+    # Redis Helm chart
+    - repoURL: https://charts.bitnami.com/bitnami
+      chart: redis
+      targetRevision: 24.1.0
+      helm:
+        valueFiles:
+          - $values/redis/values.yaml
+
+    # Values reference
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: main
+      ref: values
+
+    # ExternalSecret manifest
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: main
+      path: redis
+      directory:
+        include: 'externalsecret.yaml'
 
   syncPolicy:
     automated:
