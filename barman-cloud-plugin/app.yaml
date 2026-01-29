@@ -9,6 +9,8 @@ kind: Application
 metadata:
   name: barman-cloud-plugin
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   project: default
 
