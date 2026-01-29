@@ -38,6 +38,20 @@ spec:
   superuserSecret:
     name: postgres-superuser
 
+  # ==========================================================================
+  # MANAGED ROLES - CloudNativePG will manage these user passwords
+  # ==========================================================================
+  managed:
+    roles:
+      - name: awx
+        ensure: present
+        login: true
+        createdb: false
+        createrole: false
+        inherit: true
+        passwordSecret:
+          name: postgres-awx-owner
+
   # Storage configuration
   storage:
     size: 10Gi
