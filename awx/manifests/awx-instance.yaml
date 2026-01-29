@@ -1,9 +1,10 @@
 # =============================================================================
 # AWX Instance
 # =============================================================================
-# NOTE: AWX operator uses a built-in Redis sidecar container that communicates
-# via unix socket. External Redis is NOT supported by the operator natively.
-# The bundled Redis sidecar is the recommended and most reliable approach.
+# IMPORTANT: AWX operator uses a built-in Redis sidecar container that 
+# communicates via unix socket (/var/run/redis/redis.sock).
+# External Redis is NOT supported by the AWX operator - the sidecar is 
+# hardcoded in the deployment templates.
 # =============================================================================
 apiVersion: awx.ansible.com/v1beta1
 kind: AWX
@@ -44,7 +45,7 @@ spec:
       cpu: 1000m
       memory: 2Gi
 
-  # Redis sidecar resources (built-in Redis)
+  # Redis sidecar resources (bundled Redis - required by AWX operator)
   redis_resource_requirements:
     requests:
       cpu: 50m
