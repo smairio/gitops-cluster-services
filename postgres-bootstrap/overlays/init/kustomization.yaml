@@ -23,6 +23,6 @@ patches:
             database: awx
             owner: awx
             secret:
-              name: postgres-superuser
+              name: postgres-awx-owner
             postInitSQL:
               - CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
