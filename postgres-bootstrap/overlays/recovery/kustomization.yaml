@@ -34,10 +34,9 @@ patches:
         path: /spec/externalClusters
         value:
           - name: postgres-cluster-backup
-            # Reference the same ObjectStore used for backups
+            # Reference the same ObjectStore used for backups (same namespace)
             plugin:
               name: barman-cloud.cloudnative-pg.io
               parameters:
                 barmanObjectName: hetzner-s3-store
-                barmanObjectNamespace: cnpg-system
                 serverName: postgres-cluster

@@ -69,14 +69,13 @@ spec:
   # ==========================================================================
   # BACKUP CONFIGURATION - Using Barman Cloud Plugin
   # ==========================================================================
-  # The backup is managed through the ObjectStore CRD in cnpg-system namespace
-  # which was created by the barman-cloud-plugin application.
+  # The ObjectStore must be in the same namespace as the Cluster.
+  # The plugin looks for the ObjectStore in the cluster's namespace.
   # ==========================================================================
   plugins:
     - name: barman-cloud.cloudnative-pg.io
       parameters:
         barmanObjectName: hetzner-s3-store
-        barmanObjectNamespace: cnpg-system
 
   # ==========================================================================
   # BOOTSTRAP SECTION - Will be patched by overlays

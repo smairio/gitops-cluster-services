@@ -1,0 +1,48 @@
+# =============================================================================
+# ObjectStore - Hetzner S3 Configuration for postgres namespace
+# =============================================================================
+# Copy of the ObjectStore for the postgres cluster namespace
+# Required because barman-cloud plugin looks in the cluster's namespace
+# =============================================================================
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: hetzner-s3-store
+  namespace: postgres
+spec:
+  configuration:
+    # S3 bucket path with cluster subfolder
+    destinationPath: s3://postgres-backups/clusters/postgres-cluster
+
+    # Hetzner S3 endpoint (Falkenstein region)
+    endpointURL: https://fsn1.your-objectstorage.com
+
+    # S3 credentials - reference secret in cnpg-system namespace
+    s3Credentials:
+      accessKeyId:
+        name: hetzner-s3-credentials
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: hetzner-s3-credentials
+        key: ACCESS_SECRET_KEY
+
+    # WAL archiving configuration
+    wal:
+      compression: gzip
+      maxParallel: 2
+
+    # Base backup configuration
+    data:
+      compression: gzip
+      immediateCheckpoint: false
+
+  # Sidecar configuration for PostgreSQL instances
+  instanceSidecarConfiguration:
+    retentionPolicyIntervalSeconds: 1800
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"

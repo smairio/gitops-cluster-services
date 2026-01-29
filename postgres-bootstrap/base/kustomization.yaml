@@ -11,4 +11,6 @@ namespace: postgres
 resources:
   - namespace.yaml
   - externalsecret.yaml
+  - externalsecret-s3.yaml
+  - objectstore.yaml
   - cluster.yaml
