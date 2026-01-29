@@ -1,0 +1,87 @@
+# =============================================================================
+# CloudNativePG Cluster - Base Configuration
+# =============================================================================
+# This is the shared base cluster definition.
+# Overlays will patch this for init vs recovery modes.
+# =============================================================================
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres-cluster
+  namespace: postgres
+spec:
+  description: "Production PostgreSQL Cluster"
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.2
+  instances: 3
+
+  # PostgreSQL Configuration
+  postgresql:
+    parameters:
+      max_connections: "200"
+      shared_buffers: "256MB"
+      effective_cache_size: "768MB"
+      maintenance_work_mem: "64MB"
+      checkpoint_completion_target: "0.9"
+      wal_buffers: "16MB"
+      default_statistics_target: "100"
+      random_page_cost: "1.1"
+      effective_io_concurrency: "200"
+      work_mem: "4MB"
+      huge_pages: "off"
+      min_wal_size: "1GB"
+      max_wal_size: "4GB"
+
+  # Enable PG_STAT_STATEMENTS for monitoring
+  enableSuperuserAccess: true
+
+  # Superuser secret (pulled from Vault via ExternalSecret)
+  superuserSecret:
+    name: postgres-superuser
+
+  # Storage configuration
+  storage:
+    size: 10Gi
+    storageClass: hcloud-volumes
+
+  # WAL storage (separate volume for better performance)
+  walStorage:
+    size: 2Gi
+    storageClass: hcloud-volumes
+
+  # Resource limits
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+  # Affinity - spread across nodes
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+
+  # Monitoring
+  monitoring:
+    enablePodMonitor: true
+
+  # ==========================================================================
+  # BACKUP CONFIGURATION - Using Barman Cloud Plugin
+  # ==========================================================================
+  # The backup is managed through the ObjectStore CRD in cnpg-system namespace
+  # which was created by the barman-cloud-plugin application.
+  # ==========================================================================
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      parameters:
+        barmanObjectName: hetzner-s3-store
+        barmanObjectNamespace: cnpg-system
+
+  # ==========================================================================
+  # BOOTSTRAP SECTION - Will be patched by overlays
+  # ==========================================================================
+  # The bootstrap section is intentionally empty here.
+  # - init overlay: adds initdb bootstrap
+  # - recovery overlay: adds recovery from backup
+  # ==========================================================================

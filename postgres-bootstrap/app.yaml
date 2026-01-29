@@ -1,0 +1,41 @@
+# =============================================================================
+# PostgreSQL Bootstrap - ArgoCD Application
+# =============================================================================
+# Deploy with either init or recovery overlay:
+#
+# INIT MODE (fresh cluster):
+#   Set path to: postgres-bootstrap/overlays/init
+#
+# RECOVERY MODE (restore from backup):
+#   Set path to: postgres-bootstrap/overlays/recovery
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgres-bootstrap
+  namespace: argocd
+spec:
+  project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: postgres
+
+  source:
+    repoURL: https://github.com/smairio/gitops-cluster-services.git
+    targetRevision: main
+    # =========================================================================
+    # CHANGE THIS PATH TO SWITCH BETWEEN INIT AND RECOVERY
+    # =========================================================================
+    # For INIT (fresh cluster):      postgres-bootstrap/overlays/init
+    # For RECOVERY (from backup):    postgres-bootstrap/overlays/recovery
+    # =========================================================================
+    path: postgres-bootstrap/overlays/init
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

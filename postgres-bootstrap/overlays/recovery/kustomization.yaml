@@ -1,0 +1,43 @@
+# =============================================================================
+# Recovery Overlay - Restore PostgreSQL Cluster from Backup
+# =============================================================================
+# Use this overlay to RESTORE a cluster from S3 backup
+#
+# Options:
+#   1. recoveryTarget: {} - Restore to latest available point
+#   2. recoveryTarget.targetTime - Restore to specific point in time (PITR)
+#   3. recoveryTarget.targetLSN - Restore to specific LSN
+#   4. recoveryTarget.backupID - Restore specific backup
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: postgres
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Cluster
+      name: postgres-cluster
+    patch: |-
+      - op: add
+        path: /spec/bootstrap
+        value:
+          recovery:
+            # Use the Barman Cloud Plugin ObjectStore for recovery
+            source: postgres-cluster-backup
+            # Recover to latest point (remove targetTime or set specific timestamp for PITR)
+            recoveryTarget: {}
+      - op: add
+        path: /spec/externalClusters
+        value:
+          - name: postgres-cluster-backup
+            # Reference the same ObjectStore used for backups
+            plugin:
+              name: barman-cloud.cloudnative-pg.io
+              parameters:
+                barmanObjectName: hetzner-s3-store
+                barmanObjectNamespace: cnpg-system
+                serverName: postgres-cluster

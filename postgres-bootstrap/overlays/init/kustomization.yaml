@@ -1,0 +1,28 @@
+# =============================================================================
+# Init Overlay - Fresh PostgreSQL Cluster
+# =============================================================================
+# Use this overlay to create a NEW cluster from scratch
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: postgres
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Cluster
+      name: postgres-cluster
+    patch: |-
+      - op: add
+        path: /spec/bootstrap
+        value:
+          initdb:
+            database: awx
+            owner: awx
+            secret:
+              name: postgres-superuser
+            postInitSQL:
+              - CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
