@@ -44,3 +44,15 @@ patches:
                 barmanObjectName: hetzner-s3-store
                 # This is the serverName of the BACKUP we're restoring FROM
                 serverName: postgres-cluster
+      # ======================================================================
+      # IMPORTANT: Use a different serverName for the RECOVERED cluster
+      # This prevents conflicts when archiving to S3 after recovery
+      # The recovered cluster will archive to postgres-cluster-recovered/
+      # ======================================================================
+      - op: replace
+        path: /spec/plugins
+        value:
+          - name: barman-cloud.cloudnative-pg.io
+            parameters:
+              barmanObjectName: hetzner-s3-store
+              serverName: postgres-cluster-recovered
