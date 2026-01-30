@@ -40,9 +40,16 @@ patches:
             # ================================================================
             # RECOVERY TARGET OPTIONS (uncomment ONE):
             # ================================================================
-            # Using first backup - the second backup (20260130T110733) has missing WALs
-            recoveryTarget:
-              backupID: "20260130T083428"
+            # Option 1: Restore to LATEST point (default)
+            recoveryTarget: {}
+            # 
+            # Option 2: Restore to specific TIME (PITR)
+            # recoveryTarget:
+            #   targetTime: "2026-01-30T12:00:00Z"
+            #
+            # Option 3: Restore specific BACKUP by ID
+            # recoveryTarget:
+            #   backupID: "20260130T120000"
             # ================================================================
       - op: add
         path: /spec/externalClusters
