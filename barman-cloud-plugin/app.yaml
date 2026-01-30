@@ -46,8 +46,19 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
 
-  # Ignore status fields that ESO adds dynamically
+  # ===========================================================================
+  # Ignore differences for ESO-managed secrets
+  # ESO continuously updates secrets causing OutOfSync
+  # ===========================================================================
   ignoreDifferences:
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+        - /metadata/annotations
+        - /metadata/labels
+      managedFieldsManagers:
+        - external-secrets
     - group: external-secrets.io
       kind: ExternalSecret
       jsonPointers:
