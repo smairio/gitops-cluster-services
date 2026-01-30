@@ -1,7 +1,7 @@
 # =============================================================================
-# Pre-Recovery S3 Cleanup - ArgoCD PreSync Hook
+# Pre-Recovery S3 Cleanup - ArgoCD Sync Hook (runs before Cluster)
 # =============================================================================
-# This Job runs BEFORE the recovery Cluster is created.
+# This Job runs AFTER ExternalSecrets (-2) but BEFORE the Cluster (0).
 # It cleans up any leftover archives from previous recovery attempts.
 # =============================================================================
 apiVersion: batch/v1
@@ -10,8 +10,9 @@ metadata:
   name: pre-recovery-cleanup
   namespace: postgres
   annotations:
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"  # After ExternalSecrets (-2), before Cluster (0)
 spec:
   ttlSecondsAfterFinished: 60
   backoffLimit: 2

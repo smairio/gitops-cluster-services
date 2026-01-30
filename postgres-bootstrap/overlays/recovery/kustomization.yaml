@@ -26,6 +26,12 @@ patches:
       kind: Cluster
       name: postgres-cluster
     patch: |-
+      # ======================================================================
+      # Sync wave 0 - runs AFTER the pre-recovery-cleanup Job (wave -1)
+      # ======================================================================
+      - op: add
+        path: /metadata/annotations/argocd.argoproj.io~1sync-wave
+        value: "0"
       - op: add
         path: /spec/bootstrap
         value:
