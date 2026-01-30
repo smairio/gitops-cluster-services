@@ -3,6 +3,9 @@
 # =============================================================================
 # Use this overlay to RESTORE a cluster from S3 backup
 #
+# IMPORTANT: After recovery completes successfully, switch back to init overlay
+# to prevent recovery attempts on a running cluster.
+#
 # Options:
 #   1. recoveryTarget: {} - Restore to latest available point
 #   2. recoveryTarget.targetTime - Restore to specific point in time (PITR)
@@ -34,9 +37,10 @@ patches:
         path: /spec/externalClusters
         value:
           - name: postgres-cluster-backup
-            # Reference the same ObjectStore used for backups (same namespace)
+            # Reference the ObjectStore for reading backup (source cluster name)
             plugin:
               name: barman-cloud.cloudnative-pg.io
               parameters:
                 barmanObjectName: hetzner-s3-store
+                # This is the serverName of the BACKUP we're restoring FROM
                 serverName: postgres-cluster
