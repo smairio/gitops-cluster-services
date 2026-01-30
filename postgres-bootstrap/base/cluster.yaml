@@ -81,13 +81,14 @@ spec:
     enablePodMonitor: true
 
   # ==========================================================================
-  # BACKUP CONFIGURATION - Using Barman Cloud Plugin
+  # BACKUP CONFIGURATION - Using Barman Cloud Plugin v0.10+
   # ==========================================================================
   # The ObjectStore must be in the same namespace as the Cluster.
-  # The plugin looks for the ObjectStore in the cluster's namespace.
+  # isWALArchiver: true enables both WAL archiving and data directory backups.
   # ==========================================================================
   plugins:
     - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
       parameters:
         barmanObjectName: hetzner-s3-store
 
