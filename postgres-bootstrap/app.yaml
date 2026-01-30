@@ -36,8 +36,7 @@ spec:
     path: postgres-bootstrap/overlays/recovery
 
   # ===========================================================================
-  # Ignore differences for ESO-managed secrets
-  # ESO continuously updates secrets causing OutOfSync
+  # Ignore differences for ESO-managed secrets and CNPG-managed resources
   # ===========================================================================
   ignoreDifferences:
     - group: ""
@@ -57,6 +56,27 @@ spec:
         - .spec.data[].remoteRef.metadataPolicy
         - .spec.target.deletionPolicy
         - .metadata.finalizers
+    # CloudNativePG Cluster - operator adds many default fields
+    - group: postgresql.cnpg.io
+      kind: Cluster
+      jqPathExpressions:
+        - .status
+        - .spec.bootstrap.recovery.database
+        - .spec.bootstrap.recovery.owner
+        - .spec.externalClusters[].plugin.enabled
+        - .spec.externalClusters[].plugin.isWALArchiver
+        - .spec.plugins[].enabled
+        - .spec.failoverDelay
+        - .spec.enablePDB
+        - .spec.logLevel
+        - .spec.maxSyncReplicas
+        - .spec.minSyncReplicas
+        - .spec.postgresGID
+        - .spec.postgresUID
+        - .spec.affinity.podAntiAffinityType
+        - .spec.managed.roles[].connectionLimit
+        - .spec.monitoring.disableDefaultQueries
+        - .spec.monitoring.customQueriesConfigMap
 
   syncPolicy:
     automated:
