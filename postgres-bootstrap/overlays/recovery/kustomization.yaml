@@ -3,14 +3,13 @@
 # =============================================================================
 # Use this overlay to RESTORE a cluster from S3 backup
 #
-# IMPORTANT: After recovery completes successfully, switch back to init overlay
-# to prevent recovery attempts on a running cluster.
+# All backups are stored in the same folder (postgres-cluster/) with unique
+# Backup IDs. You can list all backups and choose which one to restore.
 #
 # Options:
 #   1. recoveryTarget: {} - Restore to latest available point
 #   2. recoveryTarget.targetTime - Restore to specific point in time (PITR)
-#   3. recoveryTarget.targetLSN - Restore to specific LSN
-#   4. recoveryTarget.backupID - Restore specific backup
+#   3. recoveryTarget.backupID - Restore specific backup by ID
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -19,7 +18,6 @@ namespace: postgres
 
 resources:
   - ../../base
-  - pre-recovery-cleanup.yaml  # ArgoCD PreSync hook to clean S3
 
 patches:
   - target:
@@ -27,40 +25,38 @@ patches:
       name: postgres-cluster
     patch: |-
       # ======================================================================
-      # Sync wave 0 - runs AFTER the pre-recovery-cleanup Job (wave -1)
+      # Skip the empty WAL archive check - allows recovery to continue
+      # writing to the same folder where backups are stored
       # ======================================================================
       - op: add
-        path: /metadata/annotations/argocd.argoproj.io~1sync-wave
-        value: "0"
+        path: /metadata/annotations/cnpg.io~1skipEmptyWalArchiveCheck
+        value: "enabled"
       - op: add
         path: /spec/bootstrap
         value:
           recovery:
             # Use the Barman Cloud Plugin ObjectStore for recovery
             source: postgres-cluster-backup
-            # Recover to latest point (remove targetTime or set specific timestamp for PITR)
+            # ================================================================
+            # RECOVERY TARGET OPTIONS (uncomment ONE):
+            # ================================================================
+            # Option 1: Restore to LATEST point (default)
             recoveryTarget: {}
+            # 
+            # Option 2: Restore to specific TIME (PITR)
+            # recoveryTarget:
+            #   targetTime: "2026-01-30T12:00:00Z"
+            #
+            # Option 3: Restore specific BACKUP by ID
+            # recoveryTarget:
+            #   backupID: "20260130T120000"
+            # ================================================================
       - op: add
         path: /spec/externalClusters
         value:
           - name: postgres-cluster-backup
-            # Reference the ObjectStore for reading backup (source cluster name)
             plugin:
               name: barman-cloud.cloudnative-pg.io
               parameters:
                 barmanObjectName: hetzner-s3-store
-                # This is the serverName of the BACKUP we're restoring FROM
                 serverName: postgres-cluster
-      # ======================================================================
-      # Use different serverName for recovered cluster archives
-      # The PreSync hook (pre-recovery-cleanup.yaml) automatically cleans
-      # this folder before each recovery attempt.
-      # ======================================================================
-      - op: replace
-        path: /spec/plugins
-        value:
-          - name: barman-cloud.cloudnative-pg.io
-            isWALArchiver: true
-            parameters:
-              barmanObjectName: hetzner-s3-store
-              serverName: postgres-cluster-recovered

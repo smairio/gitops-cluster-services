@@ -1,13 +1,14 @@
 # =============================================================================
 # PostgreSQL Bootstrap - ArgoCD Application
 # =============================================================================
-# Deploy with either init or recovery overlay:
+# Two modes available:
 #
-# INIT MODE (fresh cluster):
-#   Set path to: postgres-bootstrap/overlays/init
+# INIT MODE (default - for fresh cluster OR after recovery):
+#   path: postgres-bootstrap/overlays/init
 #
 # RECOVERY MODE (restore from backup):
-#   Set path to: postgres-bootstrap/overlays/recovery
+#   path: postgres-bootstrap/overlays/recovery
+#   Edit kustomization.yaml to set backupID or targetTime for PITR
 # =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -27,10 +28,10 @@ spec:
     repoURL: https://github.com/smairio/gitops-cluster-services.git
     targetRevision: main
     # =========================================================================
-    # CHANGE THIS PATH TO SWITCH BETWEEN INIT AND RECOVERY
+    # CHANGE THIS PATH TO SWITCH BETWEEN MODES
     # =========================================================================
-    # For INIT (fresh cluster):      postgres-bootstrap/overlays/init
-    # For RECOVERY (from backup):    postgres-bootstrap/overlays/recovery
+    # For INIT (fresh cluster or after recovery): postgres-bootstrap/overlays/init
+    # For RECOVERY (from backup):                 postgres-bootstrap/overlays/recovery
     # =========================================================================
     path: postgres-bootstrap/overlays/recovery
 
