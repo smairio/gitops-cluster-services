@@ -1,0 +1,50 @@
+# =============================================================================
+# Pre-Recovery S3 Cleanup - ArgoCD PreSync Hook
+# =============================================================================
+# This Job runs BEFORE the recovery Cluster is created.
+# It cleans up any leftover archives from previous recovery attempts.
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pre-recovery-cleanup
+  namespace: postgres
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 60
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: cleanup
+          image: amazon/aws-cli:latest
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: hetzner-s3-credentials
+                  key: ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hetzner-s3-credentials
+                  key: ACCESS_SECRET_KEY
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              BUCKET="awx-postgres-backups"
+              PREFIX="clusters/postgres-cluster"
+              ENDPOINT="https://fsn1.your-objectstorage.com"
+              
+              echo "=== Pre-Recovery S3 Cleanup (ArgoCD PreSync Hook) ==="
+              
+              echo "Cleaning up postgres-cluster-recovered folder..."
+              aws s3 rm "s3://${BUCKET}/${PREFIX}/postgres-cluster-recovered/" \
+                --recursive --endpoint-url="$ENDPOINT" 2>/dev/null || echo "(already clean)"
+              
+              echo "Cleanup complete - ready for recovery!"

@@ -135,6 +135,12 @@ spec:
 
 ## Recovery Process
 
+### Automatic S3 Cleanup
+
+The recovery overlay includes an **ArgoCD PreSync hook** that automatically cleans up S3 before each recovery attempt. This prevents the "WAL archive conflict" error.
+
+The cleanup job (`pre-recovery-cleanup.yaml`) runs before the Cluster is created and removes any leftover files from previous recovery attempts.
+
 ### Step 1: Update Configuration to Recovery Mode
 
 Edit `postgres-bootstrap/app.yaml`:

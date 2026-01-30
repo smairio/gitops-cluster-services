@@ -19,6 +19,7 @@ namespace: postgres
 
 resources:
   - ../../base
+  - pre-recovery-cleanup.yaml  # ArgoCD PreSync hook to clean S3
 
 patches:
   - target:
@@ -45,9 +46,9 @@ patches:
                 # This is the serverName of the BACKUP we're restoring FROM
                 serverName: postgres-cluster
       # ======================================================================
-      # IMPORTANT: Use a different serverName for the RECOVERED cluster
-      # This prevents conflicts when archiving to S3 after recovery
-      # The recovered cluster will archive to postgres-cluster-recovered/
+      # Use different serverName for recovered cluster archives
+      # The PreSync hook (pre-recovery-cleanup.yaml) automatically cleans
+      # this folder before each recovery attempt.
       # ======================================================================
       - op: replace
         path: /spec/plugins
