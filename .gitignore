@@ -11,3 +11,5 @@
 # Temporary files
 *.tmp
 *.bak
+
+backup.sh
