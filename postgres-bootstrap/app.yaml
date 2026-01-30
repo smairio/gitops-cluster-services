@@ -32,7 +32,7 @@ spec:
     # For INIT (fresh cluster):      postgres-bootstrap/overlays/init
     # For RECOVERY (from backup):    postgres-bootstrap/overlays/recovery
     # =========================================================================
-    path: postgres-bootstrap/overlays/recovery
+    path: postgres-bootstrap/overlays/init
 
   syncPolicy:
     automated:
