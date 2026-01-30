@@ -50,8 +50,13 @@ spec:
         - external-secrets
     - group: external-secrets.io
       kind: ExternalSecret
-      jsonPointers:
-        - /status
+      jqPathExpressions:
+        - .status
+        - .spec.data[].remoteRef.conversionStrategy
+        - .spec.data[].remoteRef.decodingStrategy
+        - .spec.data[].remoteRef.metadataPolicy
+        - .spec.target.deletionPolicy
+        - .metadata.finalizers
 
   syncPolicy:
     automated:
