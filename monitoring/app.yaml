@@ -27,6 +27,24 @@ spec:
       directory:
         include: '{ingress.yaml,externalsecret-*.yaml}'
 
+  # ===========================================================================
+  # Ignore differences for ESO-managed secrets
+  # ESO continuously updates secrets causing OutOfSync
+  # ===========================================================================
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+        - /metadata/annotations
+        - /metadata/labels
+      managedFieldsManagers:
+        - external-secrets
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /status
+
   syncPolicy:
     automated:
       prune: true
