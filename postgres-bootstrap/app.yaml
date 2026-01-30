@@ -57,15 +57,20 @@ spec:
         - .spec.target.deletionPolicy
         - .metadata.finalizers
     # CloudNativePG Cluster - operator adds many default fields
+    # Use ServerSideApply=true to reduce diffs, but some fields still need ignoring
     - group: postgresql.cnpg.io
       kind: Cluster
       jqPathExpressions:
         - .status
+        # Bootstrap defaults
         - .spec.bootstrap.recovery.database
         - .spec.bootstrap.recovery.owner
+        # External clusters defaults
         - .spec.externalClusters[].plugin.enabled
         - .spec.externalClusters[].plugin.isWALArchiver
+        # Plugin defaults
         - .spec.plugins[].enabled
+        # Cluster-level defaults
         - .spec.failoverDelay
         - .spec.enablePDB
         - .spec.logLevel
@@ -73,10 +78,53 @@ spec:
         - .spec.minSyncReplicas
         - .spec.postgresGID
         - .spec.postgresUID
+        - .spec.primaryUpdateMethod
+        - .spec.primaryUpdateStrategy
+        - .spec.smartShutdownTimeout
+        - .spec.startDelay
+        - .spec.stopDelay
+        - .spec.switchoverDelay
+        # Affinity defaults
         - .spec.affinity.podAntiAffinityType
+        # Managed roles defaults
         - .spec.managed.roles[].connectionLimit
+        # Monitoring defaults
         - .spec.monitoring.disableDefaultQueries
         - .spec.monitoring.customQueriesConfigMap
+        # Probes defaults
+        - .spec.probes
+        # Replication defaults
+        - .spec.replicationSlots
+        # Storage defaults
+        - .spec.storage.resizeInUseVolumes
+        - .spec.walStorage.resizeInUseVolumes
+        # PostgreSQL parameters defaults (CNPG adds many)
+        - .spec.postgresql.parameters.archive_mode
+        - .spec.postgresql.parameters.archive_timeout
+        - .spec.postgresql.parameters.dynamic_shared_memory_type
+        - .spec.postgresql.parameters.full_page_writes
+        - .spec.postgresql.parameters.log_destination
+        - .spec.postgresql.parameters.log_directory
+        - .spec.postgresql.parameters.log_filename
+        - .spec.postgresql.parameters.log_rotation_age
+        - .spec.postgresql.parameters.log_rotation_size
+        - .spec.postgresql.parameters.log_truncate_on_rotation
+        - .spec.postgresql.parameters.logging_collector
+        - .spec.postgresql.parameters.max_parallel_workers
+        - .spec.postgresql.parameters.max_replication_slots
+        - .spec.postgresql.parameters.max_worker_processes
+        - .spec.postgresql.parameters.shared_memory_type
+        - .spec.postgresql.parameters.shared_preload_libraries
+        - .spec.postgresql.parameters.ssl_max_protocol_version
+        - .spec.postgresql.parameters.ssl_min_protocol_version
+        - .spec.postgresql.parameters.wal_keep_size
+        - .spec.postgresql.parameters.wal_level
+        - .spec.postgresql.parameters.wal_log_hints
+        - .spec.postgresql.parameters.wal_receiver_timeout
+        - .spec.postgresql.parameters.wal_sender_timeout
+        - .spec.postgresql.syncReplicaElectionConstraint
+        # Resource limits formatting
+        - .spec.resources.limits.cpu
 
   syncPolicy:
     automated:
