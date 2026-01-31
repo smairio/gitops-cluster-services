@@ -1,0 +1,116 @@
+# =============================================================================
+# Keycloak Helm Values - Bitnami Chart
+# =============================================================================
+# Uses external PostgreSQL (same cluster as AWX)
+# Database is created by the db-init-job PreSync hook
+# =============================================================================
+
+# =============================================================================
+# Authentication
+# =============================================================================
+auth:
+  adminUser: admin
+  existingSecret: keycloak-admin-secret
+  passwordSecretKey: admin-password
+
+# =============================================================================
+# Production Mode
+# =============================================================================
+production: true
+proxy: edge
+
+# =============================================================================
+# PostgreSQL - External Database
+# =============================================================================
+postgresql:
+  enabled: false
+
+externalDatabase:
+  host: ""  # Will be set from secret
+  port: 5432
+  user: keycloak
+  database: keycloak
+  existingSecret: keycloak-postgres-secret
+  existingSecretHostKey: host
+  existingSecretPortKey: port
+  existingSecretUserKey: username
+  existingSecretDatabaseKey: database
+  existingSecretPasswordKey: password
+
+# =============================================================================
+# Service Configuration
+# =============================================================================
+service:
+  type: ClusterIP
+  http:
+    enabled: true
+  ports:
+    http: 80
+    https: 443
+
+# =============================================================================
+# Resource Limits
+# =============================================================================
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# =============================================================================
+# Replicas
+# =============================================================================
+replicaCount: 1
+
+# =============================================================================
+# Health Checks
+# =============================================================================
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 300
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+# =============================================================================
+# Metrics (optional - for Prometheus)
+# =============================================================================
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false  # Set to true if you have Prometheus Operator
+
+# =============================================================================
+# Logging
+# =============================================================================
+logging:
+  output: default
+  level: INFO
+
+# =============================================================================
+# Cache Configuration - Distributed (for HA)
+# =============================================================================
+cache:
+  enabled: true
+  # Use kubernetes discovery for cluster formation
+  stack: kubernetes
+
+# =============================================================================
+# Extra Environment Variables
+# =============================================================================
+extraEnvVars:
+  - name: KC_HEALTH_ENABLED
+    value: "true"
+  - name: KC_METRICS_ENABLED
+    value: "true"

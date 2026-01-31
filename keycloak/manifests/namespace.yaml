@@ -1,0 +1,9 @@
+# =============================================================================
+# Keycloak Namespace
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak

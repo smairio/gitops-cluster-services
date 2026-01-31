@@ -1,0 +1,67 @@
+# =============================================================================
+# Keycloak - ArgoCD Application
+# =============================================================================
+# Deploys Keycloak using Bitnami Helm chart with external PostgreSQL
+# Database is created by db-init-job (PreSync hook)
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keycloak
+
+  sources:
+    # Keycloak Helm chart (Bitnami)
+    - repoURL: https://charts.bitnami.com/bitnami
+      chart: keycloak
+      targetRevision: 24.0.4
+      helm:
+        releaseName: keycloak
+        valueFiles:
+          - $values/keycloak/values.yaml
+
+    # Values from git repository
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: main
+      ref: values
+
+    # Additional manifests (namespace, secrets, db-init job, ingress)
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: main
+      path: keycloak/manifests
+
+  # ===========================================================================
+  # Sync Policy
+  # ===========================================================================
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+  # ===========================================================================
+  # Ignore differences for ESO-managed secrets
+  # ===========================================================================
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+        - /metadata/annotations
+        - /metadata/labels
+    - group: batch
+      kind: Job
+      jsonPointers:
+        - /spec/selector
+        - /spec/template/metadata/labels

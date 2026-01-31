@@ -51,6 +51,14 @@ spec:
         inherit: true
         passwordSecret:
           name: postgres-awx-owner
+      - name: keycloak
+        ensure: present
+        login: true
+        createdb: false
+        createrole: false
+        inherit: true
+        passwordSecret:
+          name: postgres-keycloak-owner
 
   # Storage configuration
   storage:

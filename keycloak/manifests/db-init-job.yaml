@@ -1,0 +1,135 @@
+# =============================================================================
+# Keycloak Database Init Job - Idempotent
+# =============================================================================
+# This job creates the 'keycloak' database if it doesn't exist.
+# The 'keycloak' role is already created by CloudNativePG managed roles.
+# Uses ArgoCD PreSync hook to run before Keycloak deployment.
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-db-init
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: keycloak-db-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: db-init
+          image: postgres:17-alpine
+          env:
+            - name: PGHOST
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-postgres-secret
+                  key: host
+            - name: PGPORT
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-postgres-secret
+                  key: port
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-superuser
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-superuser
+                  key: password
+            - name: PGDATABASE
+              value: "postgres"
+            - name: KC_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-postgres-secret
+                  key: database
+            - name: KC_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-postgres-secret
+                  key: username
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "=== Keycloak Database Init Job ==="
+              echo "Host: $PGHOST"
+              echo "Port: $PGPORT"
+              echo "Target DB: $KC_DB_NAME"
+              echo "Target User: $KC_DB_USER"
+              
+              # Check if database exists
+              DB_EXISTS=$(psql -tAc "SELECT 1 FROM pg_database WHERE datname='$KC_DB_NAME'")
+              
+              if [ "$DB_EXISTS" = "1" ]; then
+                echo "✓ Database '$KC_DB_NAME' already exists - skipping creation"
+              else
+                echo "→ Creating database '$KC_DB_NAME'..."
+                psql -c "CREATE DATABASE $KC_DB_NAME OWNER $KC_DB_USER;"
+                echo "✓ Database '$KC_DB_NAME' created successfully"
+              fi
+              
+              # Ensure proper privileges (idempotent)
+              echo "→ Ensuring privileges on '$KC_DB_NAME'..."
+              psql -c "GRANT ALL PRIVILEGES ON DATABASE $KC_DB_NAME TO $KC_DB_USER;"
+              
+              # Connect to the keycloak database to set schema permissions
+              echo "→ Setting schema permissions..."
+              psql -d "$KC_DB_NAME" -c "GRANT ALL ON SCHEMA public TO $KC_DB_USER;"
+              psql -d "$KC_DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $KC_DB_USER;"
+              psql -d "$KC_DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $KC_DB_USER;"
+              
+              echo "=== Database initialization complete ==="
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+# =============================================================================
+# ExternalSecret - PostgreSQL Superuser (for DB creation job)
+# =============================================================================
+# Pulls superuser credentials to keycloak namespace for the init job
+# =============================================================================
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: postgres-superuser
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: postgres-superuser
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: "{{ .username }}"
+        password: "{{ .password }}"
+  data:
+    - secretKey: username
+      remoteRef:
+        key: khalil/argocd/postgres
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: khalil/argocd/postgres
+        property: password
