@@ -17,7 +17,7 @@ spec:
         - keycloak.dev.tests.software
       secretName: keycloak-tls
   rules:
-    - host: kkeycloak.dev.tests.software
+    - host: keycloak.dev.tests.software
       http:
         paths:
           - path: /
