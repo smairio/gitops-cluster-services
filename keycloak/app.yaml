@@ -1,8 +1,9 @@
 # =============================================================================
 # Keycloak - ArgoCD Application
 # =============================================================================
-# Deploys Keycloak using Bitnami Helm chart with external PostgreSQL
-# Database is created by db-init-job (PreSync hook)
+# Deploys Keycloak using Codecentric Helm chart with external PostgreSQL
+# Uses official Keycloak image from quay.io
+# Database is created by db-init-job
 # =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -19,10 +20,10 @@ spec:
     namespace: keycloak
 
   sources:
-    # Keycloak Helm chart (Bitnami)
-    - repoURL: https://charts.bitnami.com/bitnami
-      chart: keycloak
-      targetRevision: 25.2.0
+    # Keycloak Helm chart (Codecentric - uses official quay.io image)
+    - repoURL: https://codecentric.github.io/helm-charts
+      chart: keycloakx
+      targetRevision: 7.1.7
       helm:
         releaseName: keycloak
         valueFiles:
