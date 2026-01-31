@@ -77,8 +77,6 @@ service:
   type: ClusterIP
   httpPort: 80
   httpsPort: 443
-  httpNodePort: null
-  httpsNodePort: null
 
 # =============================================================================
 # Resource Limits
@@ -90,27 +88,6 @@ resources:
   limits:
     cpu: 1000m
     memory: 1Gi
-
-# =============================================================================
-# Health Checks
-# =============================================================================
-livenessProbe: |
-  httpGet:
-    path: /health/live
-    port: http
-  initialDelaySeconds: 120
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 3
-
-readinessProbe: |
-  httpGet:
-    path: /health/ready
-    port: http
-  initialDelaySeconds: 30
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 3
 
 # =============================================================================
 # Metrics
