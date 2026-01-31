@@ -17,7 +17,7 @@ image:
 # =============================================================================
 # Replicas
 # =============================================================================
-replicas: 2
+replicas: 1
 
 # =============================================================================
 # Database Configuration - External PostgreSQL
@@ -45,10 +45,10 @@ http:
   relativePath: "/"
 
 # =============================================================================
-# Cache Configuration - Kubernetes discovery for HA
+# Cache Configuration - Local mode for single replica
 # =============================================================================
 cache:
-  stack: kubernetes
+  stack: custom
 
 # =============================================================================
 # Command and Arguments
@@ -59,8 +59,7 @@ args:
   - "start"
   - "--hostname-strict=false"
   - "--http-enabled=true"
-  - "--cache=ispn"
-  - "--cache-stack=kubernetes"
+  - "--cache=local"
 
 # =============================================================================
 # Extra Environment Variables
