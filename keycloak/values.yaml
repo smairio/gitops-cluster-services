@@ -58,8 +58,11 @@ command:
 args:
   - "start"
   - "--hostname-strict=false"
+  - "--hostname-strict-https=false"
   - "--http-enabled=true"
+  - "--proxy=edge"
   - "--cache=local"
+  - "--spi-login-protocol-openid-connect-suppress-logout-confirmation-screen=true"
 
 # =============================================================================
 # Extra Environment Variables
@@ -76,6 +79,8 @@ extraEnv: |
       secretKeyRef:
         name: keycloak-admin-secret
         key: admin-password
+  - name: KC_SPI_REALM_IMPORT_DIR
+    value: "/opt/keycloak/data/import"
 
 # =============================================================================
 # Service Configuration
