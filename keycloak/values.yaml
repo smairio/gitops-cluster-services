@@ -58,9 +58,8 @@ command:
 args:
   - "start"
   - "--hostname-strict=false"
-  - "--hostname-strict-https=false"
   - "--http-enabled=true"
-  - "--proxy=edge"
+  - "--proxy-headers=xforwarded"
   - "--cache=local"
   - "--spi-login-protocol-openid-connect-suppress-logout-confirmation-screen=true"
 
