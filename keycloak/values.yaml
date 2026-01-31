@@ -1,5 +1,5 @@
 # =============================================================================
-# Keycloak Helm Values - Bitnami Chart
+# Keycloak Helm Values - Bitnami Chart v25.x
 # =============================================================================
 # Uses external PostgreSQL (same cluster as AWX)
 # Database is created by the db-init-job PreSync hook
@@ -14,10 +14,10 @@ auth:
   passwordSecretKey: admin-password
 
 # =============================================================================
-# Production Mode
+# Production Mode - Using proxy headers for TLS termination at ingress
 # =============================================================================
 production: true
-proxy: edge
+proxyHeaders: xforwarded
 
 # =============================================================================
 # PostgreSQL - External Database
@@ -26,7 +26,7 @@ postgresql:
   enabled: false
 
 externalDatabase:
-  host: ""  # Will be set from secret
+  host: "postgres-cluster-rw.postgres.svc.cluster.local"
   port: 5432
   user: keycloak
   database: keycloak
