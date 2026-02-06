@@ -25,7 +25,7 @@ spec:
       targetRevision: HEAD
       path: monitoring
       directory:
-        include: '{ingress.yaml,externalsecret-*.yaml}'
+        include: '{ingress.yaml,prometheus-ingress.yaml,externalsecret-*.yaml}'
 
   # ===========================================================================
   # Ignore differences for ESO-managed secrets
