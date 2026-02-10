@@ -1,0 +1,36 @@
+# =============================================================================
+# ECK Operator - Helm Values
+# =============================================================================
+# The operator itself runs on ELK nodes since it only manages Elastic resources.
+# =============================================================================
+
+# Schedule the operator pod on ELK-dedicated nodes
+nodeSelector:
+  node-type: elk
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "elk"
+    effect: "NoSchedule"
+
+# Operator resource limits
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Restrict the operator to only watch the elastic-system namespace
+# This improves security and reduces RBAC scope
+managedNamespaces:
+  - elastic-system
+
+# Webhook configuration
+webhook:
+  enabled: true
+
+# Telemetry - disable phone-home
+telemetry:
+  disabled: true

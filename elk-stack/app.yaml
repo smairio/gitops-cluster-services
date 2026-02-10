@@ -1,0 +1,46 @@
+# =============================================================================
+# ELK Stack - Elasticsearch + Kibana + Filebeat (via ECK CRDs)
+# =============================================================================
+# Deploys the actual ELK workloads using ECK custom resources.
+# Depends on eck-operator being installed first (sync-wave: 0 > -1).
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: elk-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: elastic-system
+
+  sources:
+    # Manifests from git (Elasticsearch, Kibana, Filebeat, ExternalSecrets)
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: main
+      path: elk-stack/manifests
+
+  # ===========================================================================
+  # Ignore differences for ESO-managed secrets
+  # ===========================================================================
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+        - /metadata/annotations
+        - /metadata/labels
+      managedFieldsManagers:
+        - external-secrets
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

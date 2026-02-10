@@ -1,0 +1,110 @@
+# =============================================================================
+# Elasticsearch Cluster - ECK Managed
+# =============================================================================
+# Production-grade Elasticsearch deployed exclusively on ELK-tainted nodes.
+#
+# STORAGE STRATEGY (Professional Best Practices):
+# ─────────────────────────────────────────────────
+# 1. Hetzner Block Storage (hcloud-volumes) with WaitForFirstConsumer binding
+#    ensures PVs are created in the same zone as the scheduled pod.
+#
+# 2. Separate volumes per node (StatefulSet default) — each ES node gets its
+#    own PV. This avoids single-point-of-failure on shared storage.
+#
+# 3. Volume Expansion enabled — the hcloud-volumes StorageClass has
+#    allowVolumeExpansion: true, so you can grow disks without downtime
+#    by simply increasing spec.storage.size and re-applying.
+#
+# 4. Data + Master split: In a small cluster (3 nodes), all nodes are
+#    master-eligible + data. For larger deployments, split into dedicated
+#    master (no storage) and data (large storage) nodeSets.
+#
+# 5. ReclaimPolicy: Delete (default). For production data you must rely on
+#    Elasticsearch snapshots to S3/MinIO — NOT on PV retention.
+#    See the snapshot-repository.yaml for automated snapshots.
+# =============================================================================
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elk
+  namespace: elastic-system
+spec:
+  version: 8.15.3
+
+  nodeSets:
+    # =========================================================================
+    # Data + Master Nodes (combined for small clusters)
+    # =========================================================================
+    - name: default
+      count: 3
+      config:
+        # Node roles
+        node.roles:
+          - master
+          - data
+          - ingest
+          - transform
+        # Performance tuning
+        xpack.security.enabled: true
+        xpack.security.transport.ssl.enabled: true
+        xpack.security.http.ssl.enabled: true
+
+      # Storage — Hetzner Block Storage via CSI
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 50Gi
+            storageClassName: hcloud-volumes
+
+      podTemplate:
+        spec:
+          # ── ELK Node Placement ──
+          nodeSelector:
+            node-type: elk
+          tolerations:
+            - key: "dedicated"
+              operator: "Equal"
+              value: "elk"
+              effect: "NoSchedule"
+
+          # Anti-affinity: spread ES pods across ELK nodes
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        elasticsearch.k8s.elastic.co/cluster-name: elk
+                    topologyKey: kubernetes.io/hostname
+
+          # Init container to fix virtual memory (required by ES)
+          initContainers:
+            - name: sysctl
+              securityContext:
+                privileged: true
+                runAsUser: 0
+              command:
+                - sh
+                - -c
+                - sysctl -w vm.max_map_count=262144
+
+          containers:
+            - name: elasticsearch
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 2Gi
+                limits:
+                  cpu: "2"
+                  memory: 4Gi
+
+              # JVM heap = 50% of memory limit (ES best practice)
+              env:
+                - name: ES_JAVA_OPTS
+                  value: "-Xms2g -Xmx2g"

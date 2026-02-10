@@ -1,0 +1,45 @@
+# =============================================================================
+# Kibana - ECK Managed
+# =============================================================================
+# Kibana UI deployed on ELK nodes, connected to the Elasticsearch cluster.
+# =============================================================================
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: elk
+  namespace: elastic-system
+spec:
+  version: 8.15.3
+  count: 1
+
+  # Reference the Elasticsearch cluster
+  elasticsearchRef:
+    name: elk
+
+  config:
+    # Server settings
+    server.name: kibana
+    server.publicBaseUrl: "https://kibana.tests.software"
+    xpack.fleet.agents.elasticsearch.hosts:
+      - "https://elk-es-http.elastic-system.svc:9200"
+
+  podTemplate:
+    spec:
+      # ── ELK Node Placement ──
+      nodeSelector:
+        node-type: elk
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "elk"
+          effect: "NoSchedule"
+
+      containers:
+        - name: kibana
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

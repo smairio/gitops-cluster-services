@@ -1,0 +1,206 @@
+# =============================================================================
+# Metricbeat - ECK Managed (DaemonSet)
+# =============================================================================
+# Metricbeat collects system-level and Kubernetes metrics from ALL nodes
+# and ships them to Elasticsearch for monitoring dashboards in Kibana.
+#
+# Modules enabled:
+#   - system: CPU, memory, disk, network, process metrics
+#   - kubernetes: Pod, node, container, volume, event metrics
+# =============================================================================
+apiVersion: beat.k8s.elastic.co/v1beta1
+kind: Beat
+metadata:
+  name: metricbeat
+  namespace: elastic-system
+spec:
+  type: metricbeat
+  version: 8.15.3
+
+  # Reference the Elasticsearch cluster
+  elasticsearchRef:
+    name: elk
+
+  # Reference Kibana for dashboard auto-setup
+  kibanaRef:
+    name: elk
+
+  config:
+    # ── System Module ──
+    metricbeat.modules:
+      - module: system
+        period: 30s
+        metricsets:
+          - cpu
+          - load
+          - memory
+          - network
+          - process
+          - process_summary
+          - socket_summary
+          - filesystem
+          - fsstat
+          - diskio
+        process.include_top_n:
+          by_cpu: 5
+          by_memory: 5
+        processes: [".*"]
+
+      # ── Kubernetes Module ──
+      - module: kubernetes
+        period: 30s
+        host: ${NODE_NAME}
+        metricsets:
+          - node
+          - system
+          - pod
+          - container
+          - volume
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        hosts:
+          - "https://${NODE_NAME}:10250"
+        ssl.verification_mode: "none"
+
+      # ── Kubernetes State Metrics (from kube-state-metrics service) ──
+      - module: kubernetes
+        period: 30s
+        metricsets:
+          - state_node
+          - state_deployment
+          - state_daemonset
+          - state_replicaset
+          - state_pod
+          - state_container
+          - state_statefulset
+          - state_cronjob
+          - state_resourcequota
+          - state_service
+          - state_persistentvolume
+          - state_persistentvolumeclaim
+          - state_storageclass
+        hosts:
+          - "kube-state-metrics.monitoring.svc.cluster.local:8080"
+
+      # ── Kubernetes Events ──
+      - module: kubernetes
+        period: 30s
+        metricsets:
+          - event
+
+    # Processors
+    processors:
+      - add_cloud_metadata: {}
+      - add_host_metadata: {}
+      - add_kubernetes_metadata:
+          host: ${NODE_NAME}
+
+    # ILM for automatic index cleanup
+    setup.ilm.enabled: true
+    setup.ilm.rollover_alias: "metricbeat"
+    setup.ilm.pattern: "{now/d}-000001"
+    setup.ilm.policy_name: "metricbeat"
+
+    # Auto-load Kibana dashboards
+    setup.dashboards.enabled: true
+
+  # DaemonSet deployment — runs on every node
+  daemonSet:
+    podTemplate:
+      spec:
+        # Tolerate ALL taints so metricbeat runs on every node
+        tolerations:
+          - operator: Exists
+
+        serviceAccountName: metricbeat
+        automountServiceAccountToken: true
+        hostNetwork: true
+        dnsPolicy: ClusterFirstWithHostNet
+
+        containers:
+          - name: metricbeat
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                cpu: 200m
+                memory: 256Mi
+            env:
+              - name: NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: spec.nodeName
+            volumeMounts:
+              - name: proc
+                mountPath: /hostfs/proc
+                readOnly: true
+              - name: cgroup
+                mountPath: /hostfs/sys/fs/cgroup
+                readOnly: true
+
+        volumes:
+          - name: proc
+            hostPath:
+              path: /proc
+          - name: cgroup
+            hostPath:
+              path: /sys/fs/cgroup
+
+---
+# =============================================================================
+# Metricbeat RBAC
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: metricbeat
+  namespace: elastic-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: metricbeat
+rules:
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - pods
+      - nodes
+      - nodes/metrics
+      - nodes/stats
+      - events
+      - services
+      - persistentvolumes
+      - persistentvolumeclaims
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - daemonsets
+      - statefulsets
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources:
+      - storageclasses
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: metricbeat
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: metricbeat
+subjects:
+  - kind: ServiceAccount
+    name: metricbeat
+    namespace: elastic-system

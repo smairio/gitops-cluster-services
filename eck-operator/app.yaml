@@ -1,0 +1,42 @@
+# =============================================================================
+# ECK Operator - Elastic Cloud on Kubernetes
+# =============================================================================
+# Deploys the ECK Operator via Helm chart from Elastic's official repository.
+# The operator manages Elasticsearch, Kibana, and other Elastic resources.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eck-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: elastic-system
+
+  sources:
+    # ECK Operator Helm chart
+    - repoURL: https://helm.elastic.co
+      chart: eck-operator
+      targetRevision: 2.14.0
+      helm:
+        releaseName: eck-operator
+        valueFiles:
+          - $values/eck-operator/values.yaml
+
+    # Values reference
+    - repoURL: https://github.com/smairio/gitops-cluster-services.git
+      targetRevision: main
+      ref: values
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

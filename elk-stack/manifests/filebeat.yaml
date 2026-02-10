@@ -1,0 +1,151 @@
+# =============================================================================
+# Filebeat - ECK Managed (DaemonSet)
+# =============================================================================
+# Filebeat runs on ALL nodes (masters, app, elk) to collect logs from every
+# pod and ship them to Elasticsearch. It must tolerate the ELK taint so it
+# also runs on ELK nodes.
+# =============================================================================
+apiVersion: beat.k8s.elastic.co/v1beta1
+kind: Beat
+metadata:
+  name: filebeat
+  namespace: elastic-system
+spec:
+  type: filebeat
+  version: 8.15.3
+
+  # Reference the Elasticsearch cluster
+  elasticsearchRef:
+    name: elk
+
+  config:
+    # Autodiscover Kubernetes pods
+    filebeat.autodiscover:
+      providers:
+        - type: kubernetes
+          node: ${NODE_NAME}
+          hints.enabled: true
+          hints.default_config:
+            type: container
+            paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+
+    # System module for node-level logs
+    filebeat.inputs:
+      - type: container
+        paths:
+          - /var/log/containers/*.log
+        processors:
+          - add_kubernetes_metadata:
+              host: ${NODE_NAME}
+              matchers:
+                - logs_path:
+                    logs_path: "/var/log/containers/"
+
+    # Output processing
+    processors:
+      - add_cloud_metadata: {}
+      - add_host_metadata: {}
+      - drop_event:
+          when:
+            or:
+              - equals:
+                  kubernetes.namespace: "kube-system"
+
+    # ILM (Index Lifecycle Management) for automatic index cleanup
+    setup.ilm.enabled: true
+    setup.ilm.rollover_alias: "filebeat"
+    setup.ilm.pattern: "{now/d}-000001"
+    setup.ilm.policy_name: "filebeat"
+
+  # DaemonSet deployment — runs on every node
+  daemonSet:
+    podTemplate:
+      spec:
+        # Tolerate ALL taints so filebeat runs on every node
+        tolerations:
+          - operator: Exists
+
+        serviceAccountName: filebeat
+        automountServiceAccountToken: true
+        dnsPolicy: ClusterFirstWithHostNet
+        hostNetwork: true
+
+        containers:
+          - name: filebeat
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                cpu: 200m
+                memory: 256Mi
+            env:
+              - name: NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: spec.nodeName
+            volumeMounts:
+              - name: varlogcontainers
+                mountPath: /var/log/containers
+                readOnly: true
+              - name: varlogpods
+                mountPath: /var/log/pods
+                readOnly: true
+              - name: varlibdockercontainers
+                mountPath: /var/lib/docker/containers
+                readOnly: true
+
+        volumes:
+          - name: varlogcontainers
+            hostPath:
+              path: /var/log/containers
+          - name: varlogpods
+            hostPath:
+              path: /var/log/pods
+          - name: varlibdockercontainers
+            hostPath:
+              path: /var/lib/docker/containers
+
+---
+# =============================================================================
+# Filebeat ServiceAccount + ClusterRole for Kubernetes metadata enrichment
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat
+  namespace: elastic-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat
+rules:
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - pods
+      - nodes
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources:
+      - replicasets
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: filebeat
+subjects:
+  - kind: ServiceAccount
+    name: filebeat
+    namespace: elastic-system
