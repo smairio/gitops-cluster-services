@@ -117,3 +117,14 @@ health:
 # =============================================================================
 ingress:
   enabled: false
+
+# =============================================================================
+# Node Placement - Schedule on general worker nodes only
+# =============================================================================
+nodeSelector:
+  node-type: general
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "general"
+    effect: "NoSchedule"

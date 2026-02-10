@@ -10,3 +10,14 @@ resources:
   limits:
     memory: "128Mi"
     cpu: "100m"
+
+# =============================================================================
+# Node Placement - Schedule on general worker nodes
+# =============================================================================
+nodeSelector:
+  node-type: general
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "general"
+    effect: "NoSchedule"

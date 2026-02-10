@@ -57,3 +57,14 @@ spec:
   # HA replicas - reduced for cluster capacity
   web_replicas: 1
   task_replicas: 1
+
+  # ==========================================================================
+  # Node Placement - Schedule on general worker nodes only
+  # ==========================================================================
+  node_selector: |
+    node-type: general
+  tolerations: |
+    - key: "dedicated"
+      operator: "Equal"
+      value: "general"
+      effect: "NoSchedule"

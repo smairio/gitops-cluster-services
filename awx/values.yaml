@@ -1,3 +1,14 @@
 # AWX Operator Helm Values
 AWX:
   enabled: false  # We'll create AWX instance manually with external secrets
+
+# =============================================================================
+# Node Placement - AWX Operator on general worker nodes
+# =============================================================================
+nodeSelector:
+  node-type: general
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "general"
+    effect: "NoSchedule"

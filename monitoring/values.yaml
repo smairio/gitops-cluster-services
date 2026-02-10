@@ -1,3 +1,7 @@
+# =============================================================================
+# Node Placement - Schedule on general worker nodes only
+# =============================================================================
+
 grafana:
   enabled: true
   service:
@@ -6,10 +10,59 @@ grafana:
     existingSecret: grafana-admin
     userKey: admin-user
     passwordKey: admin-password
+  nodeSelector:
+    node-type: general
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "general"
+      effect: "NoSchedule"
 
 prometheus:
   service:
     type: ClusterIP
+  prometheusSpec:
+    nodeSelector:
+      node-type: general
+    tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "general"
+        effect: "NoSchedule"
 
 alertmanager:
   enabled: true
+  alertmanagerSpec:
+    nodeSelector:
+      node-type: general
+    tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "general"
+        effect: "NoSchedule"
+
+# Prometheus Operator
+prometheusOperator:
+  nodeSelector:
+    node-type: general
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "general"
+      effect: "NoSchedule"
+
+# kube-state-metrics
+kube-state-metrics:
+  nodeSelector:
+    node-type: general
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "general"
+      effect: "NoSchedule"
+
+# Node exporter runs on ALL nodes (including ELK) for metrics collection
+prometheus-node-exporter:
+  tolerations:
+    - key: "dedicated"
+      operator: "Exists"

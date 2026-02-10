@@ -1,2 +1,13 @@
 # default is fine for most clusters
 replicaCount: 1
+
+# =============================================================================
+# Node Placement - Schedule operator on general worker nodes
+# =============================================================================
+nodeSelector:
+  node-type: general
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "general"
+    effect: "NoSchedule"
