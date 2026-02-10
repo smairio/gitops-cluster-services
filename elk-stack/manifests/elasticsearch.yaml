@@ -31,6 +31,15 @@ metadata:
 spec:
   version: 8.15.3
 
+  # =========================================================================
+  # Volume Claim Delete Policy (ECK-specific)
+  # =========================================================================
+  # DeleteOnScaledownOnly = PVCs are KEPT when you delete the Elasticsearch CR
+  #   → You can recreate the cluster with the same name and it reattaches data
+  # DeleteOnScaledownAndClusterDeletion (default) = PVCs are deleted with the CR
+  # =========================================================================
+  volumeClaimDeletePolicy: DeleteOnScaledownOnly
+
   nodeSets:
     # =========================================================================
     # Data + Master Nodes (combined for small clusters)
