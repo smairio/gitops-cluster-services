@@ -40,6 +40,16 @@ spec:
   # =========================================================================
   volumeClaimDeletePolicy: DeleteOnScaledownOnly
 
+  # =========================================================================
+  # S3 Snapshot Secure Settings
+  # =========================================================================
+  # ECK injects these keys into the Elasticsearch keystore automatically.
+  # The secret is created by ExternalSecret (externalsecret-s3.yaml) from Vault.
+  # Keys: s3.client.default.access_key, s3.client.default.secret_key
+  # =========================================================================
+  secureSettings:
+    - secretName: elk-s3-credentials
+
   nodeSets:
     # =========================================================================
     # Data + Master Nodes (combined for small clusters)
@@ -57,6 +67,9 @@ spec:
         xpack.security.enabled: true
         xpack.security.transport.ssl.enabled: true
         xpack.security.http.ssl.enabled: true
+        # S3 snapshot client — Hetzner Object Storage endpoint
+        s3.client.default.endpoint: fsn1.your-objectstorage.com
+        s3.client.default.protocol: https
 
       # Storage — Hetzner Block Storage via CSI
       volumeClaimTemplates:
@@ -102,6 +115,14 @@ spec:
                 - sh
                 - -c
                 - sysctl -w vm.max_map_count=262144
+
+            # Install S3 snapshot repository plugin
+            - name: install-s3-plugin
+              command:
+                - sh
+                - -c
+                - |
+                  bin/elasticsearch-plugin install --batch repository-s3
 
           containers:
             - name: elasticsearch

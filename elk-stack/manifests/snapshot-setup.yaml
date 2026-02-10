@@ -1,0 +1,153 @@
+# =============================================================================
+# Elasticsearch S3 Snapshot Repository + SLM Policy Setup
+# =============================================================================
+# This Job runs ONCE after Elasticsearch is ready to:
+#   1. Register the S3 snapshot repository (Hetzner Object Storage)
+#   2. Create an SLM policy for daily snapshots at 16:00 UTC
+#   3. Trigger an immediate first snapshot
+#
+# Re-running is safe — PUT operations are idempotent.
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: elk-snapshot-setup
+  namespace: elastic-system
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        app: elk-snapshot-setup
+    spec:
+      restartPolicy: OnFailure
+
+      # Run on ELK nodes (same placement as ES)
+      nodeSelector:
+        node-type: elk
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "elk"
+          effect: "NoSchedule"
+
+      containers:
+        - name: setup
+          image: curlimages/curl:8.5.0
+          env:
+            - name: ES_URL
+              value: "https://elk-es-http.elastic-system.svc:9200"
+            - name: ES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elk-es-elastic-user
+                  key: elastic
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              echo "=== Elasticsearch S3 Snapshot Setup ==="
+              echo ""
+
+              # ── Wait for Elasticsearch to be ready ──
+              echo "Waiting for Elasticsearch to become available..."
+              until curl -sk -u "elastic:${ES_PASSWORD}" "${ES_URL}/_cluster/health" | grep -qE '"status":"(green|yellow)"'; do
+                echo "  Elasticsearch not ready yet, retrying in 10s..."
+                sleep 10
+              done
+              echo "✓ Elasticsearch is ready"
+              echo ""
+
+              # ── Reload secure settings (S3 credentials from keystore) ──
+              echo "Reloading secure settings..."
+              curl -sk -u "elastic:${ES_PASSWORD}" -X POST "${ES_URL}/_nodes/reload_secure_settings" \
+                -H 'Content-Type: application/json' -d '{}'
+              echo ""
+              echo "✓ Secure settings reloaded"
+              echo ""
+
+              # ── Register S3 Snapshot Repository ──
+              echo "Registering S3 snapshot repository..."
+              RESPONSE=$(curl -sk -w "\n%{http_code}" -u "elastic:${ES_PASSWORD}" -X PUT \
+                "${ES_URL}/_snapshot/s3-backups" \
+                -H 'Content-Type: application/json' \
+                -d '{
+                  "type": "s3",
+                  "settings": {
+                    "bucket": "elk-backups",
+                    "base_path": "snapshots",
+                    "compress": true,
+                    "max_snapshot_bytes_per_sec": "40mb",
+                    "max_restore_bytes_per_sec": "40mb"
+                  }
+                }')
+
+              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+              BODY=$(echo "$RESPONSE" | head -n -1)
+              echo "  Response ($HTTP_CODE): $BODY"
+
+              if [ "$HTTP_CODE" -ge 400 ]; then
+                echo "✗ Failed to register snapshot repository"
+                exit 1
+              fi
+              echo "✓ S3 snapshot repository 's3-backups' registered"
+              echo ""
+
+              # ── Verify Repository ──
+              echo "Verifying repository..."
+              VERIFY=$(curl -sk -u "elastic:${ES_PASSWORD}" -X POST \
+                "${ES_URL}/_snapshot/s3-backups/_verify")
+              echo "  Verify: $VERIFY"
+              echo "✓ Repository verified"
+              echo ""
+
+              # ── Create SLM Policy (daily at 16:00 UTC) ──
+              echo "Creating SLM policy for daily snapshots at 16:00 UTC..."
+              RESPONSE=$(curl -sk -w "\n%{http_code}" -u "elastic:${ES_PASSWORD}" -X PUT \
+                "${ES_URL}/_slm/policy/daily-snapshot" \
+                -H 'Content-Type: application/json' \
+                -d '{
+                  "schedule": "0 0 16 * * ?",
+                  "name": "<elk-snap-{now/d{yyyy.MM.dd}}>",
+                  "repository": "s3-backups",
+                  "config": {
+                    "indices": ["*"],
+                    "ignore_unavailable": true,
+                    "include_global_state": true
+                  },
+                  "retention": {
+                    "expire_after": "30d",
+                    "min_count": 3,
+                    "max_count": 30
+                  }
+                }')
+
+              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+              BODY=$(echo "$RESPONSE" | head -n -1)
+              echo "  Response ($HTTP_CODE): $BODY"
+
+              if [ "$HTTP_CODE" -ge 400 ]; then
+                echo "✗ Failed to create SLM policy"
+                exit 1
+              fi
+              echo "✓ SLM policy 'daily-snapshot' created (runs daily at 16:00 UTC)"
+              echo ""
+
+              # ── Trigger immediate first snapshot ──
+              echo "Triggering immediate first snapshot..."
+              curl -sk -u "elastic:${ES_PASSWORD}" -X POST \
+                "${ES_URL}/_slm/policy/daily-snapshot/_execute"
+              echo ""
+              echo "✓ First snapshot triggered"
+              echo ""
+
+              echo "=== Setup Complete ==="
+              echo "  Repository: s3-backups (Hetzner S3)"
+              echo "  Bucket:     elk-backups/snapshots/"
+              echo "  Schedule:   Daily at 16:00 UTC"
+              echo "  Retention:  30 days (min 3, max 30 snapshots)"
