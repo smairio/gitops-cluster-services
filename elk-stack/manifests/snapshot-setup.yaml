@@ -138,12 +138,44 @@ spec:
               echo "✓ SLM policy 'daily-snapshot' created (runs daily at 16:00 UTC)"
               echo ""
 
+              # ── Ensure SLM scheduler is running ──
+              echo "Starting SLM scheduler..."
+              curl -sk -u "elastic:${ES_PASSWORD}" -X POST "${ES_URL}/_slm/start"
+              echo ""
+              sleep 2
+
+              # ── Verify SLM is running ──
+              SLM_STATUS=$(curl -sk -u "elastic:${ES_PASSWORD}" "${ES_URL}/_slm/status")
+              echo "  SLM status: $SLM_STATUS"
+              if echo "$SLM_STATUS" | grep -q '"RUNNING"'; then
+                echo "✓ SLM scheduler is running"
+              else
+                echo "✗ SLM scheduler is NOT running — retrying..."
+                curl -sk -u "elastic:${ES_PASSWORD}" -X POST "${ES_URL}/_slm/start"
+                sleep 3
+              fi
+              echo ""
+
               # ── Trigger immediate first snapshot ──
               echo "Triggering immediate first snapshot..."
               curl -sk -u "elastic:${ES_PASSWORD}" -X POST \
                 "${ES_URL}/_slm/policy/daily-snapshot/_execute"
               echo ""
               echo "✓ First snapshot triggered"
+              echo ""
+
+              # ── Run retention cleanup (delete expired snapshots) ──
+              echo "Running SLM retention cleanup..."
+              curl -sk -u "elastic:${ES_PASSWORD}" -X POST \
+                "${ES_URL}/_slm/_execute_retention"
+              echo ""
+              echo "✓ Retention cleanup triggered"
+              echo ""
+
+              # ── Final verification ──
+              echo "Verifying SLM policy status..."
+              curl -sk -u "elastic:${ES_PASSWORD}" \
+                "${ES_URL}/_slm/policy/daily-snapshot?pretty"
               echo ""
 
               echo "=== Setup Complete ==="

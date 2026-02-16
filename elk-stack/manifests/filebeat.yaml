@@ -30,27 +30,20 @@ spec:
             paths:
               - /var/log/containers/*${data.kubernetes.container.id}.log
 
-    # System module for node-level logs
-    filebeat.inputs:
-      - type: container
-        paths:
-          - /var/log/containers/*.log
-        processors:
-          - add_kubernetes_metadata:
-              host: ${NODE_NAME}
-              matchers:
-                - logs_path:
-                    logs_path: "/var/log/containers/"
-
     # Output processing
     processors:
       - add_cloud_metadata: {}
       - add_host_metadata: {}
       - drop_event:
           when:
-            or:
+            and:
               - equals:
-                  kubernetes.namespace: "kube-system"
+                  kubernetes.namespace: "elastic-system"
+              - or:
+                  - contains:
+                      kubernetes.container.name: "filebeat"
+                  - contains:
+                      kubernetes.container.name: "metricbeat"
 
     # ILM (Index Lifecycle Management) for automatic index cleanup
     setup.ilm.enabled: true
@@ -94,8 +87,8 @@ spec:
               - name: varlogpods
                 mountPath: /var/log/pods
                 readOnly: true
-              - name: varlibdockercontainers
-                mountPath: /var/lib/docker/containers
+              - name: containerd-logs
+                mountPath: /var/log/containerd
                 readOnly: true
 
         volumes:
@@ -105,9 +98,9 @@ spec:
           - name: varlogpods
             hostPath:
               path: /var/log/pods
-          - name: varlibdockercontainers
+          - name: containerd-logs
             hostPath:
-              path: /var/lib/docker/containers
+              path: /var/log/containerd
 
 ---
 # =============================================================================
