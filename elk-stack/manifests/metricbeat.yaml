@@ -195,6 +195,8 @@ spec:
 
         containers:
           - name: metricbeat
+            securityContext:
+              runAsUser: 0
             resources:
               requests:
                 cpu: 50m
