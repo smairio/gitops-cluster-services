@@ -1,12 +1,9 @@
 # =============================================================================
-# Metricbeat - ECK Managed (DaemonSet)
+# Metricbeat DaemonSet - Per-Node Metrics (ECK Managed)
 # =============================================================================
-# Metricbeat collects system-level and Kubernetes metrics from ALL nodes
-# and ships them to Elasticsearch for monitoring dashboards in Kibana.
-#
-# Modules enabled:
-#   - system: CPU, memory, disk, network, process metrics
-#   - kubernetes: Pod, node, container, volume, event metrics
+# Runs on ALL nodes to collect node-level system + kubelet metrics.
+# The kubelet metricsets (node, pod, container, volume, system) connect
+# to the local node's kubelet API at ${NODE_NAME}:10250.
 # =============================================================================
 apiVersion: beat.k8s.elastic.co/v1beta1
 kind: Beat
@@ -46,7 +43,7 @@ spec:
           by_memory: 5
         processes: [".*"]
 
-      # ── Kubernetes Module ──
+      # ── Kubernetes Kubelet Module (per-node) ──
       - module: kubernetes
         period: 30s
         host: ${NODE_NAME}
@@ -60,32 +57,6 @@ spec:
         hosts:
           - "https://${NODE_NAME}:10250"
         ssl.verification_mode: "none"
-
-      # ── Kubernetes State Metrics (from kube-state-metrics service) ──
-      - module: kubernetes
-        period: 30s
-        metricsets:
-          - state_node
-          - state_deployment
-          - state_daemonset
-          - state_replicaset
-          - state_pod
-          - state_container
-          - state_statefulset
-          - state_cronjob
-          - state_resourcequota
-          - state_service
-          - state_persistentvolume
-          - state_persistentvolumeclaim
-          - state_storageclass
-        hosts:
-          - "monitoring-kube-state-metrics.monitoring.svc.cluster.local:8080"
-
-      # ── Kubernetes Events ──
-      - module: kubernetes
-        period: 30s
-        metricsets:
-          - event
 
     # Processors
     processors:
@@ -147,6 +118,90 @@ spec:
           - name: cgroup
             hostPath:
               path: /sys/fs/cgroup
+
+---
+# =============================================================================
+# Metricbeat Deployment - Cluster-Wide State Metrics (ECK Managed)
+# =============================================================================
+# Single replica that scrapes kube-state-metrics + Kubernetes events.
+# Must NOT run as DaemonSet to avoid 7x duplicate state_* documents.
+# =============================================================================
+apiVersion: beat.k8s.elastic.co/v1beta1
+kind: Beat
+metadata:
+  name: metricbeat-state
+  namespace: elastic-system
+spec:
+  type: metricbeat
+  version: 8.15.3
+
+  elasticsearchRef:
+    name: elk
+
+  config:
+    metricbeat.modules:
+      # ── Kubernetes State Metrics (from kube-state-metrics service) ──
+      - module: kubernetes
+        period: 30s
+        metricsets:
+          - state_node
+          - state_deployment
+          - state_daemonset
+          - state_replicaset
+          - state_pod
+          - state_container
+          - state_statefulset
+          - state_cronjob
+          - state_resourcequota
+          - state_service
+          - state_persistentvolume
+          - state_persistentvolumeclaim
+          - state_storageclass
+        hosts:
+          - "monitoring-kube-state-metrics.monitoring.svc.cluster.local:8080"
+
+      # ── Kubernetes Events ──
+      - module: kubernetes
+        period: 30s
+        metricsets:
+          - event
+
+    processors:
+      - add_cloud_metadata: {}
+      - add_host_metadata: {}
+
+    setup.ilm.enabled: true
+    setup.ilm.rollover_alias: "metricbeat"
+    setup.ilm.pattern: "{now/d}-000001"
+    setup.ilm.policy_name: "metricbeat"
+
+  # Single-replica Deployment (NOT DaemonSet)
+  deployment:
+    replicas: 1
+    podTemplate:
+      spec:
+        serviceAccountName: metricbeat
+        automountServiceAccountToken: true
+        dnsPolicy: ClusterFirstWithHostNet
+
+        # Place on ELK nodes alongside ES
+        nodeSelector:
+          node-type: elk
+        tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "elk"
+            effect: "NoSchedule"
+
+        containers:
+          - name: metricbeat
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                cpu: 200m
+                memory: 256Mi
 
 ---
 # =============================================================================
