@@ -65,6 +65,12 @@ spec:
       - add_kubernetes_metadata:
           host: ${NODE_NAME}
 
+    # Index template: raise field limit (default 10000 is too low for metricbeat
+    # which maps ALL modules including unused ones like aws/gcp/mongodb)
+    setup.template.overwrite: true
+    setup.template.settings:
+      index.mapping.total_fields.limit: 20000
+
     # ILM for automatic index cleanup
     setup.ilm.enabled: true
     setup.ilm.rollover_alias: "metricbeat"
@@ -169,6 +175,11 @@ spec:
     processors:
       - add_cloud_metadata: {}
       - add_host_metadata: {}
+
+    # Index template: raise field limit (matches DaemonSet setting)
+    setup.template.overwrite: true
+    setup.template.settings:
+      index.mapping.total_fields.limit: 20000
 
     setup.ilm.enabled: true
     setup.ilm.rollover_alias: "metricbeat"
