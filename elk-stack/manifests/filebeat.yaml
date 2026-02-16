@@ -18,6 +18,10 @@ spec:
   elasticsearchRef:
     name: elk
 
+  # Reference Kibana for data view + dashboard auto-setup
+  kibanaRef:
+    name: elk
+
   config:
     # Autodiscover Kubernetes pods
     filebeat.autodiscover:
@@ -50,6 +54,9 @@ spec:
     setup.ilm.rollover_alias: "filebeat"
     setup.ilm.pattern: "{now/d}-000001"
     setup.ilm.policy_name: "filebeat"
+
+    # Auto-load Kibana dashboards + create filebeat-* data view
+    setup.dashboards.enabled: true
 
   # DaemonSet deployment — runs on every node
   daemonSet:

@@ -79,7 +79,7 @@ spec:
           - state_persistentvolumeclaim
           - state_storageclass
         hosts:
-          - "kube-state-metrics.monitoring.svc.cluster.local:8080"
+          - "monitoring-kube-state-metrics.monitoring.svc.cluster.local:8080"
 
       # ── Kubernetes Events ──
       - module: kubernetes
