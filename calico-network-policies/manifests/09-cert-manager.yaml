@@ -1,0 +1,113 @@
+# =============================================================================
+# Network Policy: cert-manager
+# =============================================================================
+# cert-manager needs to:
+# - Communicate with Kubernetes API for certificate management
+# - Access ACME servers (Let's Encrypt) for certificate issuance
+# - Communicate with DNS providers for DNS-01 challenges
+# - Receive webhook calls from API server
+# =============================================================================
+
+# Allow cert-manager egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cert-manager-allow-egress
+  namespace: cert-manager
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow access to Kubernetes API server
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow access to Kubernetes API server (node IP)
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24
+      ports:
+        - protocol: TCP
+          port: 6443
+    # Allow HTTPS to ACME servers (Let's Encrypt) and external services
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Allow cert-manager webhook ingress from API server
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cert-manager-webhook-allow-ingress
+  namespace: cert-manager
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: webhook
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow webhook calls from API server
+    - ports:
+        - protocol: TCP
+          port: 10250
+        - protocol: TCP
+          port: 443
+    # Allow from other cert-manager components
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cert-manager
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# Allow cert-manager internal communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cert-manager-internal-ingress
+  namespace: cert-manager
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow internal communication between cert-manager components
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cert-manager
+    # Allow metrics scraping from monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9402

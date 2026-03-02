@@ -1,0 +1,79 @@
+# =============================================================================
+# Network Policy: Monitoring Internal Communication
+# =============================================================================
+# Prometheus/Grafana need to:
+# - Scrape metrics from all namespaces
+# - Grafana to Prometheus
+# - Alertmanager communication
+# =============================================================================
+
+# Monitoring namespace egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-allow-egress
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow scraping metrics from any namespace (Prometheus needs this)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9090    # Prometheus
+        - protocol: TCP
+          port: 9100    # Node exporter
+        - protocol: TCP
+          port: 10254   # Ingress-nginx metrics
+        - protocol: TCP
+          port: 8080    # Various metrics endpoints
+        - protocol: TCP
+          port: 8443    # Various metrics endpoints
+        - protocol: TCP
+          port: 3000    # Grafana
+        - protocol: TCP
+          port: 9093    # Alertmanager
+        - protocol: TCP
+          port: 9094    # Alertmanager cluster
+        - protocol: TCP
+          port: 8085    # kube-state-metrics
+
+---
+# Allow internal monitoring communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-internal-ingress
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow internal monitoring namespace communication
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector: {}
+    # Allow metricbeat from elastic-system to access kube-state-metrics
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: elastic-system
+      ports:
+        - protocol: TCP
+          port: 8080   # kube-state-metrics

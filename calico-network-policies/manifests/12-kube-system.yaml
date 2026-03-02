@@ -1,0 +1,324 @@
+# =============================================================================
+# Network Policy: kube-system (CoreDNS and essential services)
+# =============================================================================
+# kube-system components need to:
+# - CoreDNS: Serve DNS queries from all pods
+# - kube-proxy: Manage iptables rules
+# - Calico: Manage network policies
+# - Hcloud CCM/CSI: Communicate with Hetzner API
+# =============================================================================
+
+# Allow CoreDNS to receive DNS queries from all namespaces
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coredns-allow-dns
+  namespace: kube-system
+spec:
+  podSelector:
+    matchLabels:
+      k8s-app: kube-dns
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow DNS queries from all pods
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow metrics scraping from monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9153
+  egress:
+    # Allow external DNS resolution (upstream)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow access to Kubernetes API server
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24
+      ports:
+        - protocol: TCP
+          port: 6443
+
+---
+# Allow Calico components egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-allow-egress
+  namespace: kube-system
+spec:
+  podSelector:
+    matchLabels:
+      k8s-app: calico-node
+  policyTypes:
+    - Egress
+  egress:
+    # Allow all egress for Calico (required for BGP, IPIP, etc.)
+    - {}
+
+---
+# Allow Calico ingress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-allow-ingress
+  namespace: kube-system
+spec:
+  podSelector:
+    matchLabels:
+      k8s-app: calico-node
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow VXLAN/IPIP traffic
+    - ports:
+        - protocol: UDP
+          port: 4789
+        - protocol: TCP
+          port: 179
+    # Allow metrics scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9091
+
+---
+# Allow Calico kube-controllers
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-kube-controllers-allow
+  namespace: kube-system
+spec:
+  podSelector:
+    matchLabels:
+      k8s-app: calico-kube-controllers
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9094
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow access to Kubernetes API
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24
+      ports:
+        - protocol: TCP
+          port: 6443
+
+---
+# Allow hcloud-cloud-controller-manager
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hcloud-ccm-allow
+  namespace: kube-system
+spec:
+  podSelector:
+    matchLabels:
+      app: hcloud-cloud-controller-manager
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow webhook/metrics
+    - ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 10258
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow access to Kubernetes API
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24
+      ports:
+        - protocol: TCP
+          port: 6443
+    # Allow access to Hetzner API
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# Allow hcloud-csi-controller
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hcloud-csi-allow
+  namespace: kube-system
+spec:
+  podSelector:
+    matchLabels:
+      app: hcloud-csi-controller
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 9189
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow access to Kubernetes API
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24
+      ports:
+        - protocol: TCP
+          port: 6443
+    # Allow access to Hetzner API
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# Allow metrics-server
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: metrics-server-allow
+  namespace: kube-system
+spec:
+  podSelector:
+    matchLabels:
+      k8s-app: metrics-server
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow API server to call metrics-server
+    - ports:
+        - protocol: TCP
+          port: 10250
+        - protocol: TCP
+          port: 443
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow access to Kubernetes API
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24
+      ports:
+        - protocol: TCP
+          port: 6443
+    # Allow access to kubelet on all nodes for metrics
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24
+      ports:
+        - protocol: TCP
+          port: 10250
+    - to:
+        - ipBlock:
+            cidr: 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 10250

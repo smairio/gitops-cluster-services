@@ -1,0 +1,31 @@
+# =============================================================================
+# Calico Network Policies - ArgoCD Application
+# =============================================================================
+# Applies Kubernetes NetworkPolicies (compatible with Calico CNI)
+# for securing ingress traffic to backend services.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: calico-network-policies
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+
+  source:
+    repoURL: https://github.com/smairio/gitops-cluster-services.git
+    targetRevision: main
+    path: calico-network-policies/manifests
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

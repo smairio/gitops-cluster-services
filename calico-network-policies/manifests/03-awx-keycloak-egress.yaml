@@ -1,0 +1,60 @@
+# =============================================================================
+# Network Policy: AWX Egress to PostgreSQL and Internal Communication
+# =============================================================================
+# AWX needs to:
+# - Connect to PostgreSQL database (port 5432)
+# - Connect to Keycloak for SSO (port 8080/8443)
+# - Resolve DNS
+# =============================================================================
+
+# AWX egress to PostgreSQL, Keycloak, and DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: awx-allow-egress
+  namespace: awx
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow PostgreSQL access
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow Keycloak access (for SSO/OIDC)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: keycloak
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    # Allow internal AWX communication (web <-> task <-> redis)
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 6379   # Redis
+        - protocol: TCP
+          port: 8052   # AWX web
+        - protocol: TCP
+          port: 5555   # AWX receptor
+
+# Keycloak policies moved to 07-keycloak-complete.yaml

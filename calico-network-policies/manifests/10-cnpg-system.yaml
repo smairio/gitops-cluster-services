@@ -1,0 +1,96 @@
+# =============================================================================
+# Network Policy: CloudNative-PG (cnpg-system)
+# =============================================================================
+# CNPG operator needs to:
+# - Communicate with Kubernetes API for CRD management
+# - Access PostgreSQL clusters in other namespaces
+# - Receive webhook calls from API server
+# =============================================================================
+
+# Allow CNPG operator egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cnpg-allow-egress
+  namespace: cnpg-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow access to Kubernetes API server (service IP)
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow access to Kubernetes API server (node IP)
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24
+      ports:
+        - protocol: TCP
+          port: 6443
+    # Allow access to PostgreSQL clusters in postgres namespace
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow access to barman-cloud-plugin
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 8080
+
+---
+# Allow CNPG webhook ingress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cnpg-webhook-allow-ingress
+  namespace: cnpg-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow webhook calls from API server
+    - ports:
+        - protocol: TCP
+          port: 9443
+        - protocol: TCP
+          port: 443
+    # Allow internal communication
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+    # Allow metrics scraping from monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9187

@@ -1,0 +1,109 @@
+# =============================================================================
+# Network Policy: Elasticsearch Internal Communication
+# =============================================================================
+# ELK stack components need to:
+# - Communicate between ES nodes (port 9200, 9300)
+# - Kibana to ES (port 9200)
+# - Filebeat/Metricbeat to ES (port 9200)
+# - Metricbeat to Kubernetes API for node/pod metrics (port 443, 6443)
+# - Metricbeat to kube-state-metrics in monitoring namespace (port 8080)
+# - Resolve DNS
+# =============================================================================
+
+# Elasticsearch internal communication and egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: elastic-allow-egress
+  namespace: elastic-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow internal elastic-system communication
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9200   # ES HTTP
+        - protocol: TCP
+          port: 9300   # ES Transport
+        - protocol: TCP
+          port: 5601   # Kibana
+    # Allow access to Kubernetes API (for metricbeat node/pod metrics)
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/12    # Kubernetes service CIDR
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24    # Node network (API server on master)
+      ports:
+        - protocol: TCP
+          port: 6443
+    # Allow metricbeat-state to reach kube-state-metrics in monitoring namespace
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080   # kube-state-metrics
+
+---
+# Allow all elastic-system pods to communicate internally
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: elastic-internal-ingress
+  namespace: elastic-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow internal elastic-system communication (only from within namespace)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: elastic-system
+          podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9200
+        - protocol: TCP
+          port: 9300
+        - protocol: TCP
+          port: 5601
+
+---
+# Allow Filebeat/Metricbeat from ALL namespaces (they run as DaemonSet everywhere)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: elastic-allow-beats
+  namespace: elastic-system
+spec:
+  podSelector:
+    matchLabels:
+      elasticsearch.k8s.elastic.co/cluster-name: elk
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from any namespace (Filebeat/Metricbeat DaemonSets)
+    - ports:
+        - protocol: TCP
+          port: 9200

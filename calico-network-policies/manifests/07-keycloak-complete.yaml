@@ -1,0 +1,116 @@
+# =============================================================================
+# Network Policy: Keycloak Complete Policies
+# =============================================================================
+# Keycloak needs to:
+# - Receive traffic from ingress-nginx (HTTP/HTTPS)
+# - Connect to PostgreSQL database (port 5432)
+# - Communicate between Keycloak replicas (clustering)
+# - Allow health checks
+# - Allow AWX to connect for SSO/OIDC
+# =============================================================================
+
+# Keycloak ingress - Allow from ingress-nginx
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloak-allow-ingress
+  namespace: keycloak
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloakx
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from ingress-nginx
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    # Allow from AWX namespace (for OIDC/SSO)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: awx
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    # Allow internal Keycloak cluster communication
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloakx
+      ports:
+        - protocol: TCP
+          port: 7800   # JGroups clustering
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9000   # Management/health
+
+---
+# Keycloak egress - Allow to PostgreSQL, DNS, and cluster communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloak-allow-egress
+  namespace: keycloak
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloakx
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow PostgreSQL access
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow internal Keycloak cluster communication (JGroups)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloakx
+      ports:
+        - protocol: TCP
+          port: 7800   # JGroups TCP
+        - protocol: UDP
+          port: 7800   # JGroups UDP
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9000   # Management
+    # Allow LDAP/external identity providers (if needed)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443   # External HTTPS (for OIDC providers like Google, GitHub)
+        - protocol: TCP
+          port: 636   # LDAPS
