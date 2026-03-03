@@ -83,6 +83,8 @@ spec:
           port: 80
         - protocol: TCP
           port: 8052
+        - protocol: TCP
+          port: 8089  # cert-manager ACME HTTP-01 solver
     # Allow traffic to elastic-system namespace (Kibana)
     - to:
         - namespaceSelector:
@@ -91,6 +93,8 @@ spec:
       ports:
         - protocol: TCP
           port: 5601
+        - protocol: TCP
+          port: 8089  # cert-manager ACME HTTP-01 solver
     # Allow traffic to keycloak namespace
     - to:
         - namespaceSelector:
@@ -101,6 +105,8 @@ spec:
           port: 8080
         - protocol: TCP
           port: 8443
+        - protocol: TCP
+          port: 8089  # cert-manager ACME HTTP-01 solver
     # Allow traffic to monitoring namespace (Grafana, Prometheus)
     - to:
         - namespaceSelector:
@@ -113,3 +119,5 @@ spec:
           port: 3000  # Grafana container port (if exposed directly)
         - protocol: TCP
           port: 9090  # Prometheus
+        - protocol: TCP
+          port: 8089  # cert-manager ACME HTTP-01 solver

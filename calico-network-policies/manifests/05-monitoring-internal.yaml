@@ -28,6 +28,19 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # Allow access to Kubernetes API (for service discovery, kube-state-metrics)
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/16    # Kubernetes service CIDR
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24    # Node network (API server on master)
+      ports:
+        - protocol: TCP
+          port: 6443
     # Allow scraping metrics from any namespace (Prometheus needs this)
     - to:
         - namespaceSelector: {}
@@ -77,3 +90,26 @@ spec:
       ports:
         - protocol: TCP
           port: 8080   # kube-state-metrics
+
+---
+# Allow ingress-nginx to reach ACME HTTP-01 solver pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-allow-acme-solver
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from ingress-nginx namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8089

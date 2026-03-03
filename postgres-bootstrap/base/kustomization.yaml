@@ -16,3 +16,4 @@ resources:
   - externalsecret-s3.yaml
   - objectstore.yaml
   - cluster.yaml
+  - scheduledbackup.yaml

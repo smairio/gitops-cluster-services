@@ -5,6 +5,7 @@
 # - Connect to PostgreSQL database (port 5432)
 # - Connect to Keycloak for SSO (port 8080/8443)
 # - Resolve DNS
+# - AWX Operator needs Kubernetes API access
 # =============================================================================
 
 # AWX egress to PostgreSQL, Keycloak, and DNS
@@ -28,6 +29,20 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # Allow access to Kubernetes API server (service IP)
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow access to Kubernetes API server (node IP)
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24
+      ports:
+        - protocol: TCP
+          port: 6443
     # Allow PostgreSQL access
     - to:
         - namespaceSelector:

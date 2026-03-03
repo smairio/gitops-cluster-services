@@ -47,3 +47,12 @@ spec:
       limits:
         memory: "512Mi"
         cpu: "500m"
+
+  # ==========================================================================
+  # RETENTION POLICY - Manual cleanup preferred
+  # ==========================================================================
+  # Use barman-cloud-backup-delete to manually clean old backups:
+  #   barman-cloud-backup-delete --cloud-provider aws-s3 \
+  #     --endpoint-url https://fsn1.your-objectstorage.com \
+  #     s3://awx-postgres-backups/clusters/postgres-cluster --retention-policy 'RECOVERY WINDOW OF 7 DAYS'
+  # ==========================================================================

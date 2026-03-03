@@ -43,6 +43,16 @@ spec:
       ports:
         - protocol: TCP
           port: 6443
+    # Allow HTTP-01 self-check to internal ingress controller
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
     # Allow HTTPS to ACME servers (Let's Encrypt) and external services
     - to:
         - ipBlock:

@@ -48,7 +48,7 @@ spec:
         - protocol: TCP
           port: 5432
 ---
-# PostgreSQL egress - needs DNS, internal replication, and S3 for backups
+# PostgreSQL egress - needs DNS, internal replication, API server, barman-cloud, and S3 for backups
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -71,6 +71,30 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # Allow access to Kubernetes API server (service IP)
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow access to Kubernetes API server (node IP)
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.0/24
+      ports:
+        - protocol: TCP
+          port: 6443
+    # Allow access to barman-cloud-plugin in cnpg-system
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 8080
     # Allow internal cluster replication
     - to:
         - podSelector:

@@ -1,0 +1,35 @@
+# =============================================================================
+# ScheduledBackup - Daily Automatic Base Backups
+# =============================================================================
+# This ensures fast recovery by limiting WAL replay to max 1 day.
+# Combined with 30d retention, you can restore from any point in last 30 days.
+#
+# Schedule: Daily at 2:00 AM UTC
+# =============================================================================
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: postgres-cluster-daily-backup
+  namespace: postgres
+spec:
+  # Cron schedule: daily at 2:00 AM UTC
+  schedule: "0 2 * * *"
+  
+  # Backup on-time even if cluster was down during scheduled time
+  backupOwnerReference: self
+  
+  # The cluster to backup
+  cluster:
+    name: postgres-cluster
+  
+  # Use the barman-cloud plugin method
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+    parameters:
+      barmanObjectName: hetzner-s3-store
+  
+  # Suspend if needed (set to true to pause backups)
+  suspend: false
+  
+  # Immediate checkpoint for consistent backup
+  immediateCheckpoint: true

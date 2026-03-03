@@ -107,3 +107,49 @@ spec:
     - ports:
         - protocol: TCP
           port: 9200
+
+---
+# Allow Filebeat/Metricbeat to reach Kibana
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: elastic-allow-kibana-access
+  namespace: elastic-system
+spec:
+  podSelector:
+    matchLabels:
+      kibana.k8s.elastic.co/name: elk
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from elastic-system namespace (beats checking Kibana)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: elastic-system
+      ports:
+        - protocol: TCP
+          port: 5601
+
+---
+# Allow ingress-nginx to reach ACME HTTP-01 solver pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: elastic-allow-acme-solver
+  namespace: elastic-system
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from ingress-nginx namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8089
