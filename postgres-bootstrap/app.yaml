@@ -30,10 +30,10 @@ spec:
     # =========================================================================
     # CHANGE THIS PATH TO SWITCH BETWEEN MODES
     # =========================================================================
-    # For INIT (fresh cluster or after recovery): postgres-bootstrap/overlays/init
+    # For INIT (fresh cluster or after recovery): postgres-bootstrap/base
     # For RECOVERY (from backup):                 postgres-bootstrap/overlays/recovery
     # =========================================================================
-    path: postgres-bootstrap/overlays/recovery
+    path: postgres-bootstrap/base
 
   # ===========================================================================
   # Ignore differences for ESO-managed secrets and CNPG-managed resources

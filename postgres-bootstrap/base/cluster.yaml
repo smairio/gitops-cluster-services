@@ -110,3 +110,12 @@ spec:
   # ==========================================================================
   # BOOTSTRAP SECTION - Fresh initdb (no recovery)
   # ==========================================================================
+  bootstrap:
+    initdb:
+      database: postgres
+      owner: postgres
+      postInitSQL:
+        - CREATE DATABASE awx OWNER awx;
+        - CREATE DATABASE keycloak OWNER keycloak;
+        - GRANT ALL PRIVILEGES ON DATABASE awx TO awx;
+        - GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;
