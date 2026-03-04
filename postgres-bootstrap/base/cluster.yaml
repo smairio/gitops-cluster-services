@@ -110,13 +110,8 @@ spec:
   # ==========================================================================
   # BOOTSTRAP SECTION - Fresh initdb (no recovery)
   # ==========================================================================
+  # Databases for AWX and Keycloak will be created manually or by apps
   bootstrap:
     initdb:
       database: postgres
       owner: postgres
-      # Note: postInitApplicationSQL runs AFTER managed roles are created
-      postInitApplicationSQL:
-        - CREATE DATABASE awx OWNER awx;
-        - CREATE DATABASE keycloak OWNER keycloak;
-        - GRANT ALL PRIVILEGES ON DATABASE awx TO awx;
-        - GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;
