@@ -13,7 +13,7 @@ resources:
   - externalsecret.yaml
   - externalsecret-awx-owner.yaml
   - externalsecret-keycloak-owner.yaml
-  # - externalsecret-s3.yaml  # Disabled - backup not configured
-  # - objectstore.yaml        # Disabled - backup not configured
+  - externalsecret-s3.yaml
+  - objectstore.yaml
   - cluster.yaml
-  # - scheduledbackup.yaml    # Disabled - backup not configured
+  - scheduledbackup.yaml

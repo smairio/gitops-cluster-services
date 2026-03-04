@@ -96,22 +96,21 @@ spec:
     enablePodMonitor: true
 
   # ==========================================================================
-  # BACKUP CONFIGURATION - DISABLED (will re-enable later)
+  # BACKUP CONFIGURATION - Using Barman Cloud Plugin v0.10+
   # ==========================================================================
-  # Using Barman Cloud Plugin v0.10+ - commented out for fresh start
-  # Uncomment below and add objectstore.yaml back to kustomization to enable
+  # The ObjectStore must be in the same namespace as the Cluster.
+  # isWALArchiver: true enables both WAL archiving and data directory backups.
   # ==========================================================================
-  # plugins:
-  #   - name: barman-cloud.cloudnative-pg.io
-  #     isWALArchiver: true
-  #     parameters:
-  #       barmanObjectName: hetzner-s3-store
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: hetzner-s3-store
 
   # ==========================================================================
-  # BOOTSTRAP SECTION - Fresh initdb (no recovery)
+  # BOOTSTRAP SECTION - Will be patched by overlays
   # ==========================================================================
-  # Databases for AWX and Keycloak will be created manually or by apps
-  bootstrap:
-    initdb:
-      database: postgres
-      owner: postgres
+  # The bootstrap section is intentionally empty here.
+  # - init overlay: adds initdb bootstrap
+  # - recovery overlay: adds recovery from backup
+  # ==========================================================================
