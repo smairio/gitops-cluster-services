@@ -114,7 +114,8 @@ spec:
     initdb:
       database: postgres
       owner: postgres
-      postInitSQL:
+      # Note: postInitApplicationSQL runs AFTER managed roles are created
+      postInitApplicationSQL:
         - CREATE DATABASE awx OWNER awx;
         - CREATE DATABASE keycloak OWNER keycloak;
         - GRANT ALL PRIVILEGES ON DATABASE awx TO awx;
