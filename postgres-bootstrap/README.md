@@ -88,6 +88,55 @@ patches:
               # backupID: "20260129T100000"
 ```
 
+## Recovery Performance Optimization
+
+The `objectstore.yaml` is configured with `maxParallel: 8` for WAL files, which speeds up recovery time by downloading multiple WAL segments concurrently.
+
+### How maxParallel Works
+
+| Setting | Effect | Use Case |
+|---------|--------|----------|
+| `maxParallel: 2` | 2 concurrent WAL downloads | Low resource environments |
+| `maxParallel: 4` | 4 concurrent WAL downloads | Balanced performance |
+| `maxParallel: 8` | 8 concurrent WAL downloads | Fast recovery priority |
+
+### Key Points
+
+- **Only affects recovery**: This setting impacts WAL replay during cluster recovery, not normal archiving operations
+- **No impact on production**: Normal PostgreSQL operations are not affected
+- **Resource usage**: Higher values increase CPU/memory/network during recovery only
+- **Recommended**: 8 for fast recovery when using S3-compatible storage with good bandwidth
+- **WAL replay is mandatory**: PostgreSQL must replay all WALs up to the recovery target - WALs cannot be skipped without risking data corruption
+
+### Configuration Location
+
+```yaml
+# base/objectstore.yaml
+spec:
+  configuration:
+    wal:
+      compression: gzip
+      maxParallel: 8  # Parallel WAL downloads during recovery
+```
+
+### Alternative: VolumeSnapshot Recovery (Fastest)
+
+For even faster recovery, VolumeSnapshots bypass the WAL replay phase entirely by cloning the disk directly. This requires CSI snapshot support and is configured via:
+
+```yaml
+# In recovery overlay
+bootstrap:
+  recovery:
+    source: origin
+    volumeSnapshots:
+      storage:
+        name: postgres-snapshot
+        kind: VolumeSnapshot
+        apiGroup: snapshot.storage.k8s.io
+```
+
+**Note**: Hetzner Cloud CSI driver supports volume snapshots.
+
 ## Monitoring
 
 Check cluster status:

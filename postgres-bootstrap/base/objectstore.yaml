@@ -27,9 +27,15 @@ spec:
         key: ACCESS_SECRET_KEY
 
     # WAL archiving configuration
+    # ==========================================================================
+    # maxParallel: Number of parallel WAL file downloads during recovery
+    # Higher values speed up PITR recovery by fetching multiple WAL files concurrently
+    # Recommended: 4-8 for fast recovery, 2 for low resource environments
+    # This only affects recovery operations, not normal archiving
+    # ==========================================================================
     wal:
       compression: gzip
-      maxParallel: 2
+      maxParallel: 8
 
     # Base backup configuration
     data:
