@@ -1,0 +1,57 @@
+---
+# =============================================================================
+# Test Playbook: Vault Integration
+# =============================================================================
+# This playbook tests that AWX can successfully retrieve secrets from Vault
+# using Kubernetes authentication.
+#
+# Prerequisites:
+#   1. Vault secret exists at: secret/khalil/awx/test
+#   2. AWX Credential configured with Vault lookup
+#   3. test_var injected from Vault credential
+#
+# Usage:
+#   Attach a credential that looks up "khalil/awx/test" -> "TEST_VAR"
+#   and injects it as extra_var "test_var"
+# =============================================================================
+
+- name: Test Vault Integration
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  
+  tasks:
+    - name: Check if test_var is defined
+      ansible.builtin.debug:
+        msg: "test_var is {{ 'defined' if test_var is defined else 'NOT defined' }}"
+    
+    - name: Display TEST_VAR from Vault
+      ansible.builtin.debug:
+        msg: "TEST_VAR value is: {{ test_var | default('NOT SET') }}"
+      
+    - name: Verify TEST_VAR has expected value
+      ansible.builtin.assert:
+        that:
+          - test_var is defined
+          - test_var == "Hello"
+        fail_msg: |
+          ❌ TEST_VAR verification failed!
+          Expected: 'Hello'
+          Got: '{{ test_var | default('undefined') }}'
+          
+          Check:
+          1. Vault secret exists at secret/khalil/awx/test
+          2. Credential lookup is configured correctly
+          3. AWX can authenticate to Vault
+        success_msg: "✅ Vault integration working! TEST_VAR = {{ test_var }}"
+    
+    - name: Summary
+      ansible.builtin.debug:
+        msg: |
+          ====================================
+          Vault Integration Test: PASSED
+          ====================================
+          Secret Path: secret/khalil/awx/test
+          Key: TEST_VAR
+          Value: {{ test_var }}
+          ====================================
