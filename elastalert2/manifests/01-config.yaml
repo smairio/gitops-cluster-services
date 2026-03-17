@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elastalert2-env
+  namespace: elastic-system
+data:
+  ES_HOST: "elk-es-http.elastic-system.svc"
+  ES_PORT: "9200"
+  ES_USERNAME: "elastic"
+  INDEX_PATTERN: "terraform-logs-*"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elastalert2-templates
+  namespace: elastic-system
+data:
+  config.yaml.tmpl: |
+    rules_folder: /config/rules
+    run_every:
+      minutes: 1
+    buffer_time:
+      minutes: 15
+
+    es_host: ${ES_HOST}
+    es_port: ${ES_PORT}
+    es_username: ${ES_USERNAME}
+    es_password: ${ES_PASSWORD}
+
+    use_ssl: true
+    verify_certs: true
+    ca_certs: /certs/ca.crt
+
+    writeback_index: elastalert_status
+    alert_time_limit:
+      days: 2
+
+    smtp_host: ${SMTP_HOST}
+    smtp_port: ${SMTP_PORT}
+    smtp_ssl: false
+    smtp_tls: ${SMTP_TLS}
+    smtp_auth_file: /config/smtp_auth
+    from_addr: ${SMTP_FROM}
+
+  rule.yaml.tmpl: |
+    name: terraform-failures-email
+    type: any
+    index: ${INDEX_PATTERN}
+    filter:
+      - term:
+          event.dataset: "terraform.run"
+      - term:
+          event.outcome: "failure"
+
+    alert:
+      - "email"
+
+    email:
+      - ${ALERT_EMAIL_TO}
+
+    alert_subject: "Terraform failure: {0}"
+    alert_subject_args:
+      - "labels.environment"
+
+    alert_text_type: alert_text_only
+    alert_text: |
+      Terraform run failed.
+
+      Environment: {0}
+      Operation: {1}
+      Error: {2}
+      Timestamp: {3}
+    alert_text_args:
+      - "labels.environment"
+      - "labels.operation"
+      - "error.message"
+      - "@timestamp"
