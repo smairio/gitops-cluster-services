@@ -43,9 +43,24 @@ spec:
               mountPath: /templates
             - name: config
               mountPath: /config
+        - name: create-index
+          image: jertel/elastalert2:2.12.0
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - elastalert-create-index --config /config/config.yaml --index elastalert_status
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: es-ca
+              mountPath: /certs
+              readOnly: true
       containers:
         - name: elastalert2
           image: jertel/elastalert2:2.12.0
+          command:
+            - elastalert
           args:
             - --config
             - /config/config.yaml
