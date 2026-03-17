@@ -32,7 +32,7 @@ spec:
               mkdir -p /config/rules &&
               envsubst < /templates/config.yaml.tmpl > /config/config.yaml &&
               envsubst < /templates/rule.yaml.tmpl > /config/rules/terraform-failures.yaml &&
-              printf "%s:%s" "$SMTP_USERNAME" "$SMTP_PASSWORD" > /config/smtp_auth
+              printf "user: \"%s\"\npassword: \"%s\"\n" "$SMTP_USERNAME" "$SMTP_PASSWORD" > /config/smtp_auth
           envFrom:
             - configMapRef:
                 name: elastalert2-env
