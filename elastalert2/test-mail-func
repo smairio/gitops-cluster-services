@@ -1,0 +1,23 @@
+set -euo pipefail
+
+ES_PASS=$(kubectl -n elastic-system get secret elk-es-elastic-user -o go-template='{{.data.elastic | base64decode}}')
+
+# 1) index a synthetic failure document into a terraform-logs-* index
+kubectl -n elastic-system delete pod es-curl-test --ignore-not-found=true >/dev/null
+kubectl -n elastic-system run es-curl-test --restart=Never --image=curlimages/curl:8.5.0 --command -- sh -lc "curl -sk -u elastic:$ES_PASS -H 'Content-Type: application/json' https://elk-es-http.elastic-system.svc:9200/terraform-logs-test/_doc -d '{\"@timestamp\":\"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'\",\"event\":{\"dataset\":\"terraform.run\",\"outcome\":\"failure\"},\"labels\":{\"environment\":\"dev\",\"operation\":\"apply\"},\"error\":{\"message\":\"synthetic test failure\"}}'" >/dev/null
+kubectl -n elastic-system wait pod/es-curl-test --for=jsonpath='{.status.phase}'=Succeeded --timeout=120s >/dev/null
+kubectl -n elastic-system logs pod/es-curl-test || true
+kubectl -n elastic-system delete pod es-curl-test >/dev/null
+
+echo 'Waiting 90s for ElastAlert2 polling...'
+sleep 90
+
+echo '--- ElastAlert2 logs (last 10m) ---'
+kubectl -n elastic-system logs deploy/elastalert2 --since=10m --tail=200 || true
+
+echo '--- MailHog messages (first lines) ---'
+kubectl -n elastic-system delete pod mh-curl-test --ignore-not-found=true >/dev/null
+kubectl -n elastic-system run mh-curl-test --restart=Never --image=curlimages/curl:8.5.0 --command -- sh -lc "curl -s http://mailhog.elastic-system.svc:8025/api/v2/messages | head -c 400" >/dev/null
+kubectl -n elastic-system wait pod/mh-curl-test --for=jsonpath='{.status.phase}'=Succeeded --timeout=120s >/dev/null
+kubectl -n elastic-system logs pod/mh-curl-test || true
+kubectl -n elastic-system delete pod mh-curl-test >/dev/null
