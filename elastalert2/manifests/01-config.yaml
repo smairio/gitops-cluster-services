@@ -101,6 +101,9 @@ data:
     type: any
     index: ${INDEX_PATTERN}
     
+    # One alert per unique trace ID - ensures every individual failure gets its own email
+    query_key: trace.id
+    
     # Query filter
     filter:
       - bool:
@@ -110,7 +113,7 @@ data:
             - term:
                 event.outcome: "failure"
     
-    # Realtime alerting (no aggregation)
+    # No deduplication - fire for every unique trace.id
     realert:
       minutes: 0
     
@@ -252,6 +255,9 @@ data:
     name: terraform-critical-errors
     type: any
     index: ${INDEX_PATTERN}
+    
+    # One alert per unique trace ID
+    query_key: trace.id
     
     filter:
       - bool:
