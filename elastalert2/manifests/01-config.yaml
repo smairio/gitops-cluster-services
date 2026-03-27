@@ -117,6 +117,9 @@ data:
     email:
       - ${ALERT_EMAIL_TO}
     
+    # Send as HTML email
+    email_format: html
+    
     # Email subject with environment and error type
     alert_subject: "🚨 Terraform Failed | {0} | {1}"
     alert_subject_args:
@@ -267,6 +270,9 @@ data:
     
     email:
       - ${ALERT_EMAIL_TO}
+    
+    # Send as HTML email
+    email_format: html
     
     alert_subject: "🔴 CRITICAL: Terraform {0} Error | {1}"
     alert_subject_args:
