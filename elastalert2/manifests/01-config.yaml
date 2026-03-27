@@ -31,12 +31,16 @@ data:
     # ElastAlert2 main configuration
     rules_folder: /config/rules
     
-    # How often to query Elasticsearch (every 15 seconds for near real-time)
+    # How often to query Elasticsearch (every 30 seconds)
     run_every:
-      seconds: 15
+      seconds: 30
     
-    # Query buffer for catching recent events
+    # Query buffer - look back 2 minutes for events
     buffer_time:
+      minutes: 2
+    
+    # Don't wait for old alerts on startup
+    old_query_limit:
       minutes: 5
     
     # Elasticsearch connection
