@@ -1,3 +1,9 @@
+# =============================================================================
+# ElastAlert2 Configuration
+# =============================================================================
+# Environment-based configuration for Elasticsearch and alerting.
+# Templates use envsubst for variable substitution at runtime.
+# =============================================================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,69 +15,304 @@ data:
   ES_USERNAME: "elastic"
   INDEX_PATTERN: "terraform-logs-*"
 ---
+# =============================================================================
+# ElastAlert2 Templates
+# =============================================================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: elastalert2-templates
   namespace: elastic-system
 data:
+  # -------------------------------------------------------------------------
+  # Main ElastAlert2 Configuration
+  # -------------------------------------------------------------------------
   config.yaml.tmpl: |
+    # ElastAlert2 main configuration
     rules_folder: /config/rules
+    
+    # How often to query Elasticsearch
     run_every:
       minutes: 1
+    
+    # Query buffer for catching recent events
     buffer_time:
       minutes: 15
-
+    
+    # Elasticsearch connection
     es_host: ${ES_HOST}
     es_port: ${ES_PORT}
     es_username: ${ES_USERNAME}
     es_password: ${ES_PASSWORD}
-
+    
+    # TLS settings (ECK uses self-signed certs)
     use_ssl: true
     verify_certs: true
     ca_certs: /certs/ca.crt
-
+    
+    # ElastAlert status index
     writeback_index: elastalert_status
+    
+    # Alert deduplication window
     alert_time_limit:
       days: 2
-
+    
+    # SMTP configuration
     smtp_host: ${SMTP_HOST}
     smtp_port: ${SMTP_PORT}
     smtp_ssl: false
     smtp_tls: ${SMTP_TLS}
     smtp_auth_file: /config/smtp_auth
     from_addr: ${SMTP_FROM}
+    
+    # Logging
+    logging:
+      version: 1
+      disable_existing_loggers: false
+      formatters:
+        simple:
+          format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+      handlers:
+        console:
+          class: logging.StreamHandler
+          level: INFO
+          formatter: simple
+          stream: ext://sys.stdout
+      root:
+        level: INFO
+        handlers:
+          - console
 
-  rule.yaml.tmpl: |
+  # -------------------------------------------------------------------------
+  # Terraform Failure Alert Rule
+  # -------------------------------------------------------------------------
+  rule-terraform-failures.yaml.tmpl: |
+    # =======================================================================
+    # Rule: Terraform Failures Alert
+    # =======================================================================
+    # Triggers on any terraform run with event.outcome: failure
+    # Sends HTML email with detailed error information
+    # =======================================================================
     name: terraform-failures-email
     type: any
     index: ${INDEX_PATTERN}
+    
+    # Query filter
     filter:
-      - term:
-          event.dataset: "terraform.run"
-      - term:
-          event.outcome: "failure"
-
+      - bool:
+          must:
+            - term:
+                event.dataset: "terraform.run"
+            - term:
+                event.outcome: "failure"
+    
+    # Realtime alerting (no aggregation)
+    realert:
+      minutes: 0
+    
+    # Alert configuration
     alert:
       - "email"
-
+    
     email:
       - ${ALERT_EMAIL_TO}
-
-    alert_subject: "Terraform failure: {0}"
+    
+    # Email subject with environment and error type
+    alert_subject: "🚨 Terraform Failed | {0} | {1}"
     alert_subject_args:
       - "labels.environment"
-
+      - "error.type"
+    
+    # HTML email body
     alert_text_type: alert_text_only
     alert_text: |
-      Terraform run failed.
-
-      Environment: {0}
-      Operation: {1}
-      Error: {2}
-      Timestamp: {3}
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto; padding: 20px; }}
+          .header {{ background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px 25px; border-radius: 8px 8px 0 0; }}
+          .header h1 {{ margin: 0; font-size: 22px; }}
+          .header .subtitle {{ opacity: 0.9; font-size: 14px; margin-top: 5px; }}
+          .content {{ background: #fff; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px; padding: 25px; }}
+          .section {{ margin-bottom: 20px; }}
+          .section-title {{ font-size: 14px; font-weight: 600; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; }}
+          .info-grid {{ display: grid; grid-template-columns: 140px 1fr; gap: 8px; }}
+          .info-label {{ font-weight: 600; color: #555; }}
+          .info-value {{ color: #333; }}
+          .badge {{ display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }}
+          .badge-error {{ background: #fde8e8; color: #c0392b; }}
+          .badge-env {{ background: #e8f4fd; color: #2980b9; }}
+          .badge-op {{ background: #fef9e7; color: #d68910; }}
+          .error-box {{ background: #fdf2f2; border-left: 4px solid #e74c3c; padding: 15px; margin: 15px 0; border-radius: 0 4px 4px 0; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; white-space: pre-wrap; word-break: break-word; }}
+          .resources-box {{ background: #fef9e7; border-left: 4px solid #f39c12; padding: 15px; margin: 15px 0; border-radius: 0 4px 4px 0; }}
+          .resources-list {{ margin: 0; padding-left: 20px; }}
+          .resources-list li {{ margin: 5px 0; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; }}
+          .footer {{ margin-top: 25px; padding-top: 15px; border-top: 1px solid #ecf0f1; font-size: 12px; color: #95a5a6; text-align: center; }}
+          .footer a {{ color: #3498db; text-decoration: none; }}
+          .timestamp {{ font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; }}
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>⚠️ Terraform Run Failed</h1>
+          <div class="subtitle">Infrastructure deployment requires attention</div>
+        </div>
+        <div class="content">
+          <div class="section">
+            <div class="section-title">Run Details</div>
+            <div class="info-grid">
+              <span class="info-label">Environment:</span>
+              <span class="info-value"><span class="badge badge-env">{0}</span></span>
+              <span class="info-label">Operation:</span>
+              <span class="info-value"><span class="badge badge-op">{1}</span></span>
+              <span class="info-label">Error Type:</span>
+              <span class="info-value"><span class="badge badge-error">{2}</span></span>
+              <span class="info-label">Exit Code:</span>
+              <span class="info-value">{3}</span>
+              <span class="info-label">Duration:</span>
+              <span class="info-value">{4} seconds</span>
+              <span class="info-label">Workspace:</span>
+              <span class="info-value">{5}</span>
+              <span class="info-label">Working Dir:</span>
+              <span class="info-value"><code>{6}</code></span>
+              <span class="info-label">Timestamp:</span>
+              <span class="info-value timestamp">{7}</span>
+              <span class="info-label">Trace ID:</span>
+              <span class="info-value"><code>{8}</code></span>
+            </div>
+          </div>
+          
+          <div class="section">
+            <div class="section-title">Planned Changes</div>
+            <div class="info-grid">
+              <span class="info-label">To Add:</span>
+              <span class="info-value">{9}</span>
+              <span class="info-label">To Change:</span>
+              <span class="info-value">{10}</span>
+              <span class="info-label">To Destroy:</span>
+              <span class="info-value">{11}</span>
+            </div>
+          </div>
+          
+          <div class="section">
+            <div class="section-title">Error Message</div>
+            <div class="error-box">{12}</div>
+          </div>
+          
+          <div class="section">
+            <div class="section-title">Failed Resources</div>
+            <div class="resources-box">
+              {13}
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p>Alert generated by ElastAlert2 | <a href="https://kibana.dev.tests.software">View in Kibana</a></p>
+            <p>Host: {14}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    
     alert_text_args:
       - "labels.environment"
       - "labels.operation"
-      - "error.message"
+      - "error.type"
+      - "terraform.exit_code"
+      - "terraform.duration_seconds"
+      - "labels.workspace"
+      - "labels.working_dir"
       - "@timestamp"
+      - "trace.id"
+      - "terraform.changes.add"
+      - "terraform.changes.change"
+      - "terraform.changes.destroy"
+      - "error.message"
+      - "terraform.failed_resources"
+      - "host.name"
+
+  # -------------------------------------------------------------------------
+  # High Severity Alert Rule (Authentication/State Conflicts)
+  # -------------------------------------------------------------------------
+  rule-terraform-critical.yaml.tmpl: |
+    # =======================================================================
+    # Rule: Critical Terraform Errors
+    # =======================================================================
+    # Triggers on authentication, state_conflict, or quota_exceeded errors
+    # These require immediate attention
+    # =======================================================================
+    name: terraform-critical-errors
+    type: any
+    index: ${INDEX_PATTERN}
+    
+    filter:
+      - bool:
+          must:
+            - term:
+                event.dataset: "terraform.run"
+            - term:
+                event.outcome: "failure"
+            - terms:
+                error.type:
+                  - "authentication"
+                  - "state_conflict"
+                  - "quota_exceeded"
+    
+    realert:
+      minutes: 5
+    
+    alert:
+      - "email"
+    
+    email:
+      - ${ALERT_EMAIL_TO}
+    
+    alert_subject: "🔴 CRITICAL: Terraform {0} Error | {1}"
+    alert_subject_args:
+      - "error.type"
+      - "labels.environment"
+    
+    alert_text_type: alert_text_only
+    alert_text: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }}
+          .critical-header {{ background: #8e0000; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }}
+          .critical-header h1 {{ margin: 0; font-size: 24px; }}
+          .content {{ background: #fff; border: 2px solid #8e0000; border-top: none; padding: 20px; border-radius: 0 0 8px 8px; }}
+          .alert-type {{ font-size: 18px; font-weight: bold; color: #8e0000; text-align: center; margin: 15px 0; padding: 10px; background: #fde8e8; border-radius: 4px; }}
+          .details {{ margin: 20px 0; }}
+          .detail-row {{ display: flex; padding: 8px 0; border-bottom: 1px solid #eee; }}
+          .detail-label {{ font-weight: 600; width: 120px; }}
+          .error-msg {{ background: #333; color: #f1f1f1; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 13px; margin: 15px 0; white-space: pre-wrap; }}
+        </style>
+      </head>
+      <body>
+        <div class="critical-header">
+          <h1>⚠️ CRITICAL ALERT</h1>
+        </div>
+        <div class="content">
+          <div class="alert-type">{0} ERROR</div>
+          <div class="details">
+            <div class="detail-row"><span class="detail-label">Environment:</span> {1}</div>
+            <div class="detail-row"><span class="detail-label">Operation:</span> {2}</div>
+            <div class="detail-row"><span class="detail-label">Timestamp:</span> {3}</div>
+          </div>
+          <div class="error-msg">{4}</div>
+          <p style="text-align: center; margin-top: 20px;">
+            <strong>Immediate action required.</strong><br>
+            This error type often indicates credential expiry, resource locks, or quota limits.
+          </p>
+        </div>
+      </body>
+      </html>
+    
+    alert_text_args:
+      - "error.type"
+      - "labels.environment"
+      - "labels.operation"
+      - "@timestamp"
+      - "error.message"

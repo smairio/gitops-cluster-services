@@ -1,8 +1,18 @@
+# =============================================================================
+# ElastAlert2 Deployment
+# =============================================================================
+# Runs ElastAlert2 with init containers for config rendering and index setup.
+# Uses ExternalSecret for ES password from Vault.
+# =============================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: elastalert2
   namespace: elastic-system
+  labels:
+    app.kubernetes.io/name: elastalert2
+    app.kubernetes.io/component: alerting
+    app.kubernetes.io/part-of: elk-stack
 spec:
   replicas: 1
   selector:
@@ -12,7 +22,11 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: elastalert2
+      annotations:
+        # Force restart when config changes
+        checksum/config: "{{ include (print $.Template.BasePath \"/01-config.yaml\") . | sha256sum }}"
     spec:
+      # Schedule on ELK-dedicated nodes
       nodeSelector:
         node-type: elk
       tolerations:
@@ -20,56 +34,164 @@ spec:
           operator: "Equal"
           value: "elk"
           effect: "NoSchedule"
+      
+      serviceAccountName: default
+      
+      # -----------------------------------------------------------------------
+      # Init Containers
+      # -----------------------------------------------------------------------
       initContainers:
+        # Render configuration templates with environment variables
         - name: render-config
           image: alpine:3.19
           command:
             - /bin/sh
             - -c
           args:
-            - >-
-              apk add --no-cache gettext >/dev/null &&
-              mkdir -p /config/rules &&
-              envsubst < /templates/config.yaml.tmpl > /config/config.yaml &&
-              envsubst < /templates/rule.yaml.tmpl > /config/rules/terraform-failures.yaml &&
+            - |
+              set -e
+              apk add --no-cache gettext >/dev/null
+              mkdir -p /config/rules
+              
+              echo "Rendering main config..."
+              envsubst < /templates/config.yaml.tmpl > /config/config.yaml
+              
+              echo "Rendering rules..."
+              envsubst < /templates/rule-terraform-failures.yaml.tmpl > /config/rules/terraform-failures.yaml
+              envsubst < /templates/rule-terraform-critical.yaml.tmpl > /config/rules/terraform-critical.yaml
+              
+              echo "Creating SMTP auth file..."
               printf "user: \"%s\"\npassword: \"%s\"\n" "$SMTP_USERNAME" "$SMTP_PASSWORD" > /config/smtp_auth
-          envFrom:
-            - configMapRef:
-                name: elastalert2-env
-            - secretRef:
-                name: elastalert2-secrets
+              
+              echo "Config files generated:"
+              ls -la /config/
+              ls -la /config/rules/
+          env:
+            # From ConfigMap
+            - name: ES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: elastalert2-env
+                  key: ES_HOST
+            - name: ES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: elastalert2-env
+                  key: ES_PORT
+            - name: ES_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: elastalert2-env
+                  key: ES_USERNAME
+            - name: INDEX_PATTERN
+              valueFrom:
+                configMapKeyRef:
+                  name: elastalert2-env
+                  key: INDEX_PATTERN
+            # From ExternalSecret (Vault)
+            - name: ES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastalert2-es-password
+                  key: ES_PASSWORD
+            # From SMTP secrets
+            - name: SMTP_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: elastalert2-smtp
+                  key: SMTP_HOST
+            - name: SMTP_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: elastalert2-smtp
+                  key: SMTP_PORT
+            - name: SMTP_TLS
+              valueFrom:
+                secretKeyRef:
+                  name: elastalert2-smtp
+                  key: SMTP_TLS
+            - name: SMTP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: elastalert2-smtp
+                  key: SMTP_USERNAME
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastalert2-smtp
+                  key: SMTP_PASSWORD
+            # From email config
+            - name: SMTP_FROM
+              valueFrom:
+                secretKeyRef:
+                  name: elastalert2-email-config
+                  key: SMTP_FROM
+            - name: ALERT_EMAIL_TO
+              valueFrom:
+                secretKeyRef:
+                  name: elastalert2-email-config
+                  key: ALERT_EMAIL_TO
           volumeMounts:
             - name: templates
               mountPath: /templates
             - name: config
               mountPath: /config
+        
+        # Create ElastAlert index in Elasticsearch
         - name: create-index
-          image: jertel/elastalert2:2.12.0
+          image: jertel/elastalert2:2.19.0
           command:
             - /bin/sh
             - -c
           args:
-            - elastalert-create-index --config /config/config.yaml --index elastalert_status
+            - |
+              echo "Creating/verifying ElastAlert index..."
+              elastalert-create-index --config /config/config.yaml --index elastalert_status || true
+              echo "Index setup complete"
           volumeMounts:
             - name: config
               mountPath: /config
             - name: es-ca
               mountPath: /certs
               readOnly: true
+      
+      # -----------------------------------------------------------------------
+      # Main Container
+      # -----------------------------------------------------------------------
       containers:
         - name: elastalert2
-          image: jertel/elastalert2:2.12.0
+          image: jertel/elastalert2:2.19.0
           command:
             - elastalert
           args:
             - --config
             - /config/config.yaml
+            - --verbose
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "200m"
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "pgrep -f elastalert"
+            initialDelaySeconds: 30
+            periodSeconds: 30
           volumeMounts:
             - name: config
               mountPath: /config
             - name: es-ca
               mountPath: /certs
               readOnly: true
+      
+      # -----------------------------------------------------------------------
+      # Volumes
+      # -----------------------------------------------------------------------
       volumes:
         - name: templates
           configMap:
