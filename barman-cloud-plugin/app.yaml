@@ -66,5 +66,6 @@ spec:
         - .spec.data[].remoteRef.conversionStrategy
         - .spec.data[].remoteRef.decodingStrategy
         - .spec.data[].remoteRef.metadataPolicy
+        - .spec.data[].remoteRef.nullBytePolicy
         - .spec.target.deletionPolicy
         - .metadata.finalizers

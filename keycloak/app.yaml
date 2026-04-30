@@ -61,6 +61,18 @@ spec:
         - /data
         - /metadata/annotations
         - /metadata/labels
+      managedFieldsManagers:
+        - external-secrets
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jqPathExpressions:
+        - .status
+        - .spec.data[].remoteRef.conversionStrategy
+        - .spec.data[].remoteRef.decodingStrategy
+        - .spec.data[].remoteRef.metadataPolicy
+        - .spec.data[].remoteRef.nullBytePolicy
+        - .spec.target.deletionPolicy
+        - .metadata.finalizers
     - group: batch
       kind: Job
       jsonPointers:
