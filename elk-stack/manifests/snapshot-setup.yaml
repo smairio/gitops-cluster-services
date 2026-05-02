@@ -79,7 +79,7 @@ spec:
                 -d '{
                   "type": "s3",
                   "settings": {
-                    "bucket": "elk-backups",
+                    "bucket": "khalil-elk-backup",
                     "base_path": "snapshots",
                     "compress": true,
                     "max_snapshot_bytes_per_sec": "40mb",
@@ -180,6 +180,6 @@ spec:
 
               echo "=== Setup Complete ==="
               echo "  Repository: s3-backups (Hetzner S3)"
-              echo "  Bucket:     elk-backups/snapshots/"
+              echo "  Bucket:     khalil-elk-backup/snapshots/"
               echo "  Schedule:   Daily at 16:00 UTC"
               echo "  Retention:  30 days (min 3, max 30 snapshots)"

@@ -290,7 +290,7 @@ PUT _snapshot/s3_backup
 {
   "type": "s3",
   "settings": {
-    "bucket": "elk-backups",
+    "bucket": "khalil-elk-backup",
     "endpoint": "fsn1.your-objectstorage.com",
     "protocol": "https"
   }
