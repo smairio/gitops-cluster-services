@@ -17,7 +17,7 @@ metadata:
 spec:
   configuration:
     # S3 bucket path - create bucket first in Hetzner Console
-    destinationPath: s3://postgres-backups/
+    destinationPath: s3://khalil-pg-backup/
 
     # Hetzner S3 endpoint (Falkenstein region)
     endpointURL: https://fsn1.your-objectstorage.com
