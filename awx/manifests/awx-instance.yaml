@@ -55,8 +55,8 @@ spec:
       memory: 256Mi
 
   # HA replicas - reduced for cluster capacity
-  web_replicas: 1
-  task_replicas: 1
+  web_replicas: 3
+  task_replicas: 3
 
   # ==========================================================================
   # Node Placement - Schedule on general worker nodes only
