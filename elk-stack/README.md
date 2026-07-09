@@ -411,7 +411,7 @@ hcloud volume list
 - Memory: ~7.5Gi request / ~14.3Gi limit
 - Storage: 150Gi (3 × 50Gi Hetzner Block Volumes)
 
-> 💡 **This is why `cx42` (4 vCPU / 16GB RAM) is the recommended minimum ELK node server type.**
+> 💡 **This is why `cpx42` (8 vCPU / 16GB RAM) is the recommended minimum ELK node server type.**
 
 ---
 
