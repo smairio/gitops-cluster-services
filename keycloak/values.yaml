@@ -45,10 +45,15 @@ http:
   relativePath: "/"
 
 # =============================================================================
-# Cache Configuration - Local mode for single replica
+# Cache Configuration - Distributed (Infinispan) for multi-replica HA
 # =============================================================================
+# With replicas > 1, cache MUST be distributed. Local caches make in-flight
+# login state (auth sessions + one-time OIDC codes) pod-local; without ingress
+# affinity the browser round-robins to a pod that never issued the session,
+# resetting the flow -> ERR_TOO_MANY_REDIRECTS. The actual cache mode/stack is
+# set via the explicit args list below (authoritative over this block).
 cache:
-  stack: custom
+  stack: kubernetes
 
 # =============================================================================
 # Command and Arguments
@@ -60,7 +65,8 @@ args:
   - "--hostname-strict=false"
   - "--http-enabled=true"
   - "--proxy-headers=xforwarded"
-  - "--cache=local"
+  - "--cache=ispn"
+  - "--cache-stack=kubernetes"
   - "--spi-login-protocol-openid-connect-suppress-logout-confirmation-screen=true"
 
 # =============================================================================
@@ -71,6 +77,10 @@ extraEnv: |
     value: "true"
   - name: KC_METRICS_ENABLED
     value: "true"
+  # Point the JGroups "kubernetes" stack (DNS_PING) at the chart's headless
+  # service so the 3 replicas discover each other and form one Infinispan cluster.
+  - name: JAVA_OPTS_APPEND
+    value: "-Djgroups.dns.query=keycloak-keycloakx-headless.keycloak.svc.cluster.local"
   - name: KEYCLOAK_ADMIN
     value: "admin"
   - name: KEYCLOAK_ADMIN_PASSWORD
